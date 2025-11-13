@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-lambda';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { AwsClientsService } from '../common/aws-clients.service';
-import * as AdmZip from 'adm-zip';
+import AdmZip from 'adm-zip';
 
 export interface DeployLambdaRequest {
   customerId: string;

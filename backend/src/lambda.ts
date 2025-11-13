@@ -31,13 +31,13 @@ async function bootstrapServer(): Promise<Handler> {
     );
 
     await nestApp.init();
-    cachedServer = serverlessExpress({ app: expressApp });
+    cachedServer = serverlessExpress(expressApp);
   }
 
   return cachedServer;
 }
 
-export const handler: Handler = async (event: any, context: Context) => {
+export const handler: Handler = async (event: any, context: Context, callback?: any) => {
   const server = await bootstrapServer();
-  return server(event, context);
+  return server(event, context, callback);
 };

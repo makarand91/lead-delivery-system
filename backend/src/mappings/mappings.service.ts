@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PutCommand, GetCommand, QueryCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, QueryCommand, DeleteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { AwsClientsService } from '../common/aws-clients.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -122,7 +122,7 @@ export class MappingsService {
 
     if (updateExpressions.length > 1) {
       await this.awsClients.dynamoClient.send(
-        new PutCommand({
+        new UpdateCommand({
           TableName: this.tableName,
           Key: {
             PK: `CUSTOMER#${customerId}`,
