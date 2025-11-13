@@ -69,6 +69,22 @@ class ApiService {
     return response.data;
   }
 
+  // Integration Code
+  async getIntegrationCodesByCustomer(customerId: string) {
+    const response = await this.api.get(`/integration-code/customer/${customerId}`);
+    return Array.isArray(response.data) ? response.data : [];
+  }
+
+  async getLatestIntegrationCode(customerId: string) {
+    const response = await this.api.get(`/integration-code/customer/${customerId}/latest`);
+    return response.data;
+  }
+
+  async getIntegrationCodeById(codeId: string) {
+    const response = await this.api.get(`/integration-code/${codeId}`);
+    return response.data;
+  }
+
   // Lambda Deployer
   async deployLambda(data: any) {
     const response = await this.api.post('/lambda-deployer/deploy', data);

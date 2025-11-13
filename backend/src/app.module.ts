@@ -10,6 +10,7 @@ import { ExcelParserModule } from './excel-parser/excel-parser.module';
 import { LogsModule } from './logs/logs.module';
 import { TransformationsModule } from './transformations/transformations.module';
 import { ValidationModule } from './validation/validation.module';
+import { IntegrationCodeModule } from './integration-code/integration-code.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -28,6 +29,7 @@ import { AppController } from './app.controller';
     LogsModule,
     TransformationsModule,
     ValidationModule,
+    IntegrationCodeModule,
   ],
   controllers: [AppController],
 })

@@ -1,22 +1,35 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AiGeneratorService, GenerateIntegrationCodeRequest } from './ai-generator.service';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthGuard } from '../common/auth.guard';
+import { IntegrationCodeService } from '../integration-code/integration-code.service';
 
 @ApiTags('AI Generator')
 @ApiBearerAuth()
 @Controller('ai-generator')
 @UseGuards(AuthGuard)
 export class AiGeneratorController {
-  constructor(private aiGeneratorService: AiGeneratorService) {}
+  constructor(
+    private aiGeneratorService: AiGeneratorService,
+    private integrationCodeService: IntegrationCodeService,
+  ) {}
 
   @Post('integration-code')
   @ApiOperation({ summary: 'Generate CRM integration code using AI' })
   async generateIntegrationCode(
-    @Body() request: GenerateIntegrationCodeRequest,
-  ): Promise<{ code: string }> {
+    @Body() request: GenerateIntegrationCodeRequest & { customerId: string },
+  ): Promise<{ code: string; codeId: string }> {
     const code = await this.aiGeneratorService.generateIntegrationCode(request);
-    return { code };
+
+    // Save the generated code
+    const savedCode = await this.integrationCodeService.saveGeneratedCode({
+      customerId: request.customerId,
+      code,
+      crmType: request.crmType,
+      crmEndpoint: request.crmEndpoint,
+    });
+
+    return { code, codeId: savedCode.codeId };
   }
 
   @Post('transformation-function')
