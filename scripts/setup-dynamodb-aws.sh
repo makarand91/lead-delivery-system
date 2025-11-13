@@ -42,28 +42,41 @@ create_table() {
 
     echo -e "${YELLOW}Creating table: ${table_name}${NC}"
 
+    local output
+    local exit_code
+
     if [ -z "$gsi" ]; then
-        aws dynamodb create-table \
+        output=$(aws dynamodb create-table \
             --table-name "${table_name}" \
             --attribute-definitions ${attribute_definitions} \
             --key-schema ${key_schema} \
             --billing-mode PAY_PER_REQUEST \
             --region ${REGION} \
-            --no-cli-pager \
-            2>/dev/null || echo -e "${RED}Table ${table_name} already exists or error occurred${NC}"
+            --no-cli-pager 2>&1)
+        exit_code=$?
     else
-        aws dynamodb create-table \
+        output=$(aws dynamodb create-table \
             --table-name "${table_name}" \
             --attribute-definitions ${attribute_definitions} \
             --key-schema ${key_schema} \
             --global-secondary-indexes ${gsi} \
             --billing-mode PAY_PER_REQUEST \
             --region ${REGION} \
-            --no-cli-pager \
-            2>/dev/null || echo -e "${RED}Table ${table_name} already exists or error occurred${NC}"
+            --no-cli-pager 2>&1)
+        exit_code=$?
     fi
 
-    echo -e "${GREEN}✓ Table ${table_name} created successfully${NC}"
+    if [ $exit_code -eq 0 ]; then
+        echo -e "${GREEN}✓ Table ${table_name} created successfully${NC}"
+    else
+        if echo "$output" | grep -q "ResourceInUseException"; then
+            echo -e "${YELLOW}⚠ Table ${table_name} already exists${NC}"
+        else
+            echo -e "${RED}✗ Failed to create table ${table_name}${NC}"
+            echo -e "${RED}Error: ${output}${NC}"
+            return 1
+        fi
+    fi
     echo ""
 }
 
