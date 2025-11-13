@@ -46,12 +46,14 @@ const authStack = new AuthStack(app, `${stackPrefix}-auth`, {
   userPoolClientId: process.env.COGNITO_USER_POOL_CLIENT_ID, // Optional - will create new if not provided
 });
 
-// Monitoring Stack - ElasticSearch
+// Monitoring Stack - Use existing OpenSearch with basic auth
 const monitoringStack = new MonitoringStack(app, `${stackPrefix}-monitoring`, {
   env,
   stackName: `${stackPrefix}-monitoring`,
-  description: 'ElasticSearch for delivery logs',
-  vpcId: process.env.EXISTING_VPC_ID,
+  description: 'OpenSearch configuration for delivery logs',
+  opensearchEndpoint: process.env.OPENSEARCH_ENDPOINT!,
+  opensearchUsername: process.env.OPENSEARCH_USERNAME,
+  opensearchPassword: process.env.OPENSEARCH_PASSWORD,
 });
 
 // Lambda Stack - API Lambda and Batch Processor
@@ -62,7 +64,8 @@ const lambdaStack = new LambdaStack(app, `${stackPrefix}-lambda`, {
   tables: databaseStack.tables,
   buckets: storageStack.buckets,
   userPool: authStack.userPool,
-  elasticsearchDomain: monitoringStack.domain,
+  opensearchEndpoint: monitoringStack.opensearchEndpoint,
+  opensearchSecret: monitoringStack.opensearchSecret,
   vpcId: process.env.EXISTING_VPC_ID,
 });
 

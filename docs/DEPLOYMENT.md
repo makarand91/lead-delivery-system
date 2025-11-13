@@ -42,8 +42,14 @@ EXISTING_FARGATE_CLUSTER_NAME=my-fargate-cluster
 APP_NAME=lead-delivery-system
 ENVIRONMENT=dev
 
-# Cognito Configuration
-COGNITO_DOMAIN_PREFIX=lead-delivery-dev
+# Cognito Configuration (Existing User Pool)
+COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
+COGNITO_USER_POOL_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx  # Optional
+
+# OpenSearch Configuration (Existing with Basic Auth)
+OPENSEARCH_ENDPOINT=https://search-xxx.us-east-1.es.amazonaws.com
+OPENSEARCH_USERNAME=admin
+OPENSEARCH_PASSWORD=YourSecurePassword123!
 ```
 
 ### Backend Configuration
@@ -83,11 +89,12 @@ npm run cdk:deploy
 
 This will create:
 - DynamoDB tables (Customers, Deliveries, Mappings, Logs, Integration Code)
-- S3 buckets (Lead files, Integration code)
-- Cognito User Pool and Identity Pool
+- S3 buckets (Lead files, Integration code, Warehouse files)
+- Cognito configuration (using existing User Pool)
 - Lambda functions (API, Batch Processor)
 - API Gateway
-- ElasticSearch domain
+- OpenSearch configuration (using existing cluster with basic auth)
+- Secrets Manager secret for OpenSearch credentials
 - EventBridge rules
 
 **Note:** Save the CloudFormation outputs - you'll need them for configuration.
@@ -109,13 +116,19 @@ INTEGRATION_CODE_TABLE=lead-delivery-system-dev-database-integration-code
 # S3 Buckets
 LEAD_FILES_BUCKET=lead-delivery-system-dev-storage-lead-files-123456789012
 INTEGRATION_CODE_BUCKET=lead-delivery-system-dev-storage-integration-code-123456789012
+WAREHOUSE_FILES_BUCKET=lead-delivery-system-dev-storage-warehouse-files-123456789012
 
 # Cognito
 USER_POOL_ID=us-east-1_XXXXXXXXX
 USER_POOL_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# ElasticSearch
-ELASTICSEARCH_ENDPOINT=search-xxx.us-east-1.es.amazonaws.com
+# OpenSearch (with basic authentication)
+OPENSEARCH_ENDPOINT=https://search-xxx.us-east-1.es.amazonaws.com
+# Credentials will be stored in Secrets Manager automatically by CDK
+# For local development, you can use environment variables:
+OPENSEARCH_USERNAME=admin
+OPENSEARCH_PASSWORD=YourSecurePassword123!
+OPENSEARCH_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:opensearch-credentials
 
 # Lambda
 CUSTOMER_LAMBDA_ROLE_ARN=arn:aws:iam::123456789012:role/customer-lambda-role
@@ -264,12 +277,14 @@ Monitor table metrics in CloudWatch:
 - Throttled requests
 - Table size
 
-### ElasticSearch
+### OpenSearch
 
-Access Kibana for log visualization:
+Access OpenSearch Dashboards for log visualization:
 ```
-https://search-xxx.us-east-1.es.amazonaws.com/_plugin/kibana
+https://search-xxx.us-east-1.es.amazonaws.com/_dashboards
 ```
+
+Login with your OpenSearch credentials (stored in Secrets Manager).
 
 ## Troubleshooting
 
@@ -358,7 +373,8 @@ Approximate monthly costs (us-east-1):
 - **Lambda:** First 1M requests free, then $0.20/1M
 - **API Gateway:** $3.50/million requests
 - **Cognito:** First 50,000 MAU free
-- **ElasticSearch:** ~$25/month (t3.small.search)
+- **OpenSearch:** Using existing cluster (costs depend on your setup)
+- **Secrets Manager:** $0.40/secret/month
 - **Bedrock:** ~$3-15/1M tokens (Claude 3.5 Sonnet)
 
 **Total estimated cost:** $50-100/month for moderate usage

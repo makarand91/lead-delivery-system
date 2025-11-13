@@ -4,7 +4,7 @@ import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
-import * as es from 'aws-cdk-lib/aws-elasticsearch';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -22,9 +22,11 @@ export interface LambdaStackProps extends cdk.StackProps {
   buckets: {
     leadFiles: s3.Bucket;
     integrationCode: s3.Bucket;
+    warehouseFiles: s3.Bucket;
   };
-  userPool: cognito.UserPool;
-  elasticsearchDomain: es.CfnDomain;
+  userPool: cognito.IUserPool;
+  opensearchEndpoint: string;
+  opensearchSecret?: secretsmanager.ISecret;
   vpcId?: string;
 }
 
@@ -40,7 +42,7 @@ export class LambdaStack extends cdk.Stack {
     const batchSchedule = process.env.BATCH_SCHEDULE || 'cron(0 * * * ? *)';
 
     // Common environment variables
-    const commonEnvironment = {
+    const commonEnvironment: Record<string, string> = {
       CUSTOMERS_TABLE: props.tables.customers.tableName,
       DELIVERIES_TABLE: props.tables.deliveries.tableName,
       FIELD_MAPPINGS_TABLE: props.tables.fieldMappings.tableName,
@@ -48,11 +50,17 @@ export class LambdaStack extends cdk.Stack {
       INTEGRATION_CODE_TABLE: props.tables.integrationCode.tableName,
       LEAD_FILES_BUCKET: props.buckets.leadFiles.bucketName,
       INTEGRATION_CODE_BUCKET: props.buckets.integrationCode.bucketName,
+      WAREHOUSE_FILES_BUCKET: props.buckets.warehouseFiles.bucketName,
       USER_POOL_ID: props.userPool.userPoolId,
-      ELASTICSEARCH_ENDPOINT: props.elasticsearchDomain.attrDomainEndpoint,
+      OPENSEARCH_ENDPOINT: props.opensearchEndpoint,
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
       NODE_OPTIONS: '--enable-source-maps',
     };
+
+    // Add Secrets Manager ARN if OpenSearch secret is provided
+    if (props.opensearchSecret) {
+      commonEnvironment.OPENSEARCH_SECRET_ARN = props.opensearchSecret.secretArn;
+    }
 
     // API Lambda - Main NestJS application
     this.apiLambda = new nodejs.NodejsFunction(this, 'ApiLambda', {
@@ -116,15 +124,10 @@ export class LambdaStack extends cdk.Stack {
       })
     );
 
-    // Grant ElasticSearch access
-    this.apiLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['es:ESHttp*'],
-        resources: [
-          `${props.elasticsearchDomain.attrArn}/*`,
-        ],
-      })
-    );
+    // Grant Secrets Manager access for OpenSearch credentials
+    if (props.opensearchSecret) {
+      props.opensearchSecret.grantRead(this.apiLambda);
+    }
 
     // Batch Processor Lambda - Scheduled job
     this.batchProcessorLambda = new nodejs.NodejsFunction(this, 'BatchProcessorLambda', {
@@ -152,6 +155,7 @@ export class LambdaStack extends cdk.Stack {
     props.tables.fieldMappings.grantReadData(this.batchProcessorLambda);
     props.tables.deliveryLogs.grantReadWriteData(this.batchProcessorLambda);
     props.buckets.leadFiles.grantRead(this.batchProcessorLambda);
+    props.buckets.warehouseFiles.grantReadWrite(this.batchProcessorLambda);
 
     // Grant permission to invoke customer Lambda functions
     this.batchProcessorLambda.addToRolePolicy(
@@ -161,15 +165,10 @@ export class LambdaStack extends cdk.Stack {
       })
     );
 
-    // Grant ElasticSearch access
-    this.batchProcessorLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['es:ESHttp*'],
-        resources: [
-          `${props.elasticsearchDomain.attrArn}/*`,
-        ],
-      })
-    );
+    // Grant Secrets Manager access for OpenSearch credentials
+    if (props.opensearchSecret) {
+      props.opensearchSecret.grantRead(this.batchProcessorLambda);
+    }
 
     // EventBridge rule for batch processing
     const batchScheduleRule = new events.Rule(this, 'BatchScheduleRule', {
@@ -194,15 +193,8 @@ export class LambdaStack extends cdk.Stack {
       ],
     });
 
-    // Grant ElasticSearch access to customer Lambda role
-    customerLambdaRole.addToPolicy(
-      new iam.PolicyStatement({
-        actions: ['es:ESHttp*'],
-        resources: [
-          `${props.elasticsearchDomain.attrArn}/*`,
-        ],
-      })
-    );
+    // Customer Lambda functions don't need direct OpenSearch access
+    // Logs are written via the batch processor
 
     // CloudFormation outputs
     new cdk.CfnOutput(this, 'ApiLambdaArn', {

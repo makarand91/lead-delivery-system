@@ -1,88 +1,47 @@
 import * as cdk from 'aws-cdk-lib';
-import * as es from 'aws-cdk-lib/aws-elasticsearch';
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as iam from 'aws-cdk-lib/aws-iam';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 
 export interface MonitoringStackProps extends cdk.StackProps {
-  vpcId?: string;
+  opensearchEndpoint: string;
+  opensearchUsername?: string;
+  opensearchPassword?: string;
 }
 
 export class MonitoringStack extends cdk.Stack {
-  public readonly domain: es.CfnDomain;
+  public readonly opensearchEndpoint: string;
+  public readonly opensearchSecret?: secretsmanager.ISecret;
 
   constructor(scope: Construct, id: string, props: MonitoringStackProps) {
     super(scope, id, props);
 
-    const instanceType = process.env.ELASTICSEARCH_INSTANCE_TYPE || 't3.small.search';
-    const volumeSize = parseInt(process.env.ELASTICSEARCH_VOLUME_SIZE || '10');
+    this.opensearchEndpoint = props.opensearchEndpoint;
 
-    // ElasticSearch Domain for delivery logs
-    this.domain = new es.CfnDomain(this, 'DeliveryLogsDomain', {
-      domainName: `${id}-logs`.toLowerCase().replace(/_/g, '-'),
-      elasticsearchVersion: '7.10',
-      elasticsearchClusterConfig: {
-        instanceType: instanceType,
-        instanceCount: 1,
-        dedicatedMasterEnabled: false,
-        zoneAwarenessEnabled: false,
-      },
-      ebsOptions: {
-        ebsEnabled: true,
-        volumeType: 'gp3',
-        volumeSize: volumeSize,
-      },
-      encryptionAtRestOptions: {
-        enabled: true,
-      },
-      nodeToNodeEncryptionOptions: {
-        enabled: true,
-      },
-      domainEndpointOptions: {
-        enforceHttps: true,
-        tlsSecurityPolicy: 'Policy-Min-TLS-1-2-2019-07',
-      },
-      accessPolicies: {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: {
-              AWS: '*',
-            },
-            Action: 'es:*',
-            Resource: `arn:aws:es:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:domain/${id}-logs`.toLowerCase().replace(/_/g, '-') + '/*',
-            Condition: {
-              IpAddress: {
-                'aws:SourceIp': ['0.0.0.0/0'], // TODO: Restrict to VPC CIDR in production
-              },
-            },
-          },
-        ],
-      },
-      advancedOptions: {
-        'rest.action.multi.allow_explicit_index': 'true',
-        'indices.fielddata.cache.size': '40',
-      },
-    });
+    // If credentials provided, store them in Secrets Manager
+    if (props.opensearchUsername && props.opensearchPassword) {
+      this.opensearchSecret = new secretsmanager.Secret(this, 'OpenSearchSecret', {
+        secretName: `${id}-opensearch-credentials`,
+        description: 'OpenSearch basic authentication credentials',
+        secretObjectValue: {
+          username: cdk.SecretValue.unsafePlainText(props.opensearchUsername),
+          password: cdk.SecretValue.unsafePlainText(props.opensearchPassword),
+          endpoint: cdk.SecretValue.unsafePlainText(props.opensearchEndpoint),
+        },
+      });
+
+      // CloudFormation outputs
+      new cdk.CfnOutput(this, 'OpenSearchSecretArn', {
+        value: this.opensearchSecret.secretArn,
+        description: 'Secrets Manager ARN for OpenSearch credentials',
+        exportName: `${id}-opensearch-secret-arn`,
+      });
+    }
 
     // CloudFormation outputs
-    new cdk.CfnOutput(this, 'ElasticsearchDomainEndpoint', {
-      value: this.domain.attrDomainEndpoint,
-      description: 'ElasticSearch domain endpoint',
-      exportName: `${id}-es-endpoint`,
-    });
-
-    new cdk.CfnOutput(this, 'ElasticsearchDomainArn', {
-      value: this.domain.attrArn,
-      description: 'ElasticSearch domain ARN',
-      exportName: `${id}-es-arn`,
-    });
-
-    new cdk.CfnOutput(this, 'ElasticsearchDomainName', {
-      value: this.domain.domainName!,
-      description: 'ElasticSearch domain name',
-      exportName: `${id}-es-name`,
+    new cdk.CfnOutput(this, 'OpenSearchEndpoint', {
+      value: this.opensearchEndpoint,
+      description: 'OpenSearch domain endpoint (existing)',
+      exportName: `${id}-opensearch-endpoint`,
     });
   }
 }

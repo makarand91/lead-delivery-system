@@ -421,7 +421,7 @@ Follow updated [DEPLOYMENT.md](./DEPLOYMENT.md) with new configuration.
 
 ### Global View Query:
 - DynamoDB pagination for large datasets
-- ElasticSearch for advanced filtering (future enhancement)
+- OpenSearch for advanced log searching and filtering
 - Cache frequently accessed summaries (Redis, future)
 
 ## 15. Future Enhancements
@@ -440,6 +440,132 @@ Follow updated [DEPLOYMENT.md](./DEPLOYMENT.md) with new configuration.
 - [ ] Multi-tenant support with team isolation
 - [ ] Advanced analytics dashboard (Power BI integration)
 
+## 16. OpenSearch Integration with Basic Authentication
+
+### Overview:
+The system now integrates with existing OpenSearch clusters using basic authentication (username/password) for delivery log indexing and searching.
+
+### Configuration:
+```bash
+# infrastructure/.env
+OPENSEARCH_ENDPOINT=https://search-xxx.us-east-1.es.amazonaws.com
+OPENSEARCH_USERNAME=admin
+OPENSEARCH_PASSWORD=YourSecurePassword123!
+```
+
+### Architecture:
+- **Secrets Manager**: Stores OpenSearch credentials securely
+- **OpenSearchClientService** (`backend/src/common/opensearch-client.service.ts`): HTTP client with basic auth
+- **LogsService** (`backend/src/logs/logs.service.ts`): Indexes delivery logs to OpenSearch
+- **Dual Storage**: Logs stored in both DynamoDB (primary) and OpenSearch (search)
+
+### Features:
+1. **Automatic Indexing**: Every delivery log automatically indexed to OpenSearch
+2. **Search Capabilities**: Full-text search across delivery logs, error messages, CRM IDs
+3. **Dashboard Access**: OpenSearch Dashboards for log visualization
+4. **Secure Authentication**: Credentials stored in AWS Secrets Manager
+5. **Fallback Support**: Works with environment variables for local development
+
+### OpenSearch Client Methods:
+```typescript
+// Index single document
+await opensearchClient.indexDocument('delivery-logs', docId, {
+  deliveryId: 'xxx',
+  leadIndex: 0,
+  status: 'SUCCESS',
+  crmId: 'sf-12345',
+  processedAt: '2025-01-15T10:00:00Z'
+});
+
+// Search logs
+const results = await opensearchClient.search('delivery-logs', {
+  query: {
+    multi_match: {
+      query: 'error timeout',
+      fields: ['errorMessage', 'deliveryId']
+    }
+  }
+});
+
+// Bulk index for performance
+await opensearchClient.bulkIndex('delivery-logs', [
+  { id: 'doc1', ...data1 },
+  { id: 'doc2', ...data2 }
+]);
+```
+
+### Index Schema:
+```json
+{
+  "delivery-logs": {
+    "mappings": {
+      "properties": {
+        "deliveryId": { "type": "keyword" },
+        "leadIndex": { "type": "integer" },
+        "status": { "type": "keyword" },
+        "errorMessage": { "type": "text" },
+        "crmId": { "type": "keyword" },
+        "retryCount": { "type": "integer" },
+        "processedAt": { "type": "date" },
+        "timestamp": { "type": "date" }
+      }
+    }
+  }
+}
+```
+
+### API Endpoints:
+```
+GET /logs/search?q=timeout
+→ Search delivery logs using OpenSearch
+→ Returns: Array of matching log entries sorted by date
+```
+
+### Error Handling:
+- OpenSearch failures are logged but don't block primary operations
+- Logs always saved to DynamoDB first
+- OpenSearch indexing is asynchronous and best-effort
+- Connection retries with exponential backoff
+
+### Security:
+- Credentials stored in AWS Secrets Manager (auto-rotatable)
+- IAM policies grant Lambda read access to secrets
+- HTTPS-only connections to OpenSearch
+- No credentials in code or environment variables (production)
+
+### Local Development:
+```bash
+# backend/.env (local only)
+OPENSEARCH_ENDPOINT=https://localhost:9200
+OPENSEARCH_USERNAME=admin
+OPENSEARCH_PASSWORD=admin
+# No OPENSEARCH_SECRET_ARN = uses env vars directly
+```
+
+### Monitoring:
+```bash
+# Access OpenSearch Dashboards
+https://search-xxx.us-east-1.es.amazonaws.com/_dashboards
+
+# Sample queries
+GET delivery-logs/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        { "term": { "status": "FAILED" } },
+        { "range": { "processedAt": { "gte": "now-24h" } } }
+      ]
+    }
+  }
+}
+```
+
+### CDK Resources Created:
+- **Secrets Manager Secret**: `${stackName}-opensearch-credentials`
+- **IAM Policies**: Grants Lambda functions read access to secret
+- **Environment Variables**: `OPENSEARCH_ENDPOINT`, `OPENSEARCH_SECRET_ARN` passed to Lambdas
+
 ## Summary
 
 This enhancement transforms the lead delivery system into a complete, enterprise-grade solution with:
@@ -448,6 +574,7 @@ This enhancement transforms the lead delivery system into a complete, enterprise
 - ✅ Automated warehouse file management
 - ✅ Global delivery visibility
 - ✅ Existing Cognito integration
+- ✅ OpenSearch integration with basic authentication
 - ✅ Production-ready error handling
 - ✅ Scalable architecture
 

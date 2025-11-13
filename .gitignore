@@ -38,6 +38,9 @@ Thumbs.db
 logs/
 *.log
 npm-debug.log*
+# But allow source code directories named logs
+!backend/src/logs/
+!lambdas/*/src/logs/
 
 # Testing
 coverage/
