@@ -12,10 +12,15 @@ const CustomerDetail = () => {
   const [loading, setLoading] = useState(true);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
+  const [codeId, setCodeId] = useState('');
   const [deploying, setDeploying] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
 
   useEffect(() => {
-    if (id) loadCustomer();
+    if (id) {
+      loadCustomer();
+      loadExistingCode();
+    }
   }, [id]);
 
   const loadCustomer = async () => {
@@ -31,16 +36,34 @@ const CustomerDetail = () => {
     }
   };
 
+  const loadExistingCode = async () => {
+    try {
+      setLoadingExisting(true);
+      const existingCode = await apiService.getLatestIntegrationCode(id!);
+      if (existingCode && existingCode.code) {
+        setGeneratedCode(existingCode.code);
+        setCodeId(existingCode.codeId);
+      }
+    } catch (error) {
+      // No existing code, that's fine
+      console.log('No existing integration code found');
+    } finally {
+      setLoadingExisting(false);
+    }
+  };
+
   const handleGenerateCode = async () => {
     setGeneratingCode(true);
     try {
       const result = await apiService.generateIntegrationCode({
+        customerId: id,
         crmType: customer.crmType,
         crmEndpoint: customer.crmEndpoint,
         authMethod: 'Bearer Token',
         customRequirements: customer.customContext?.requirements,
       });
       setGeneratedCode(result.code);
+      setCodeId(result.codeId);
       toast.success('Integration code generated successfully!');
     } catch (error) {
       toast.error('Failed to generate code');
@@ -70,6 +93,24 @@ const CustomerDetail = () => {
     } finally {
       setDeploying(false);
     }
+  };
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(generatedCode);
+    toast.success('Code copied to clipboard!');
+  };
+
+  const handleDownloadCode = () => {
+    const blob = new Blob([generatedCode], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${customer.name.replace(/\s+/g, '-')}-integration-${codeId}.js`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Code downloaded!');
   };
 
   if (loading) {
@@ -131,31 +172,95 @@ const CustomerDetail = () => {
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
           <h3 className="text-lg leading-6 font-medium text-gray-900">AI-Generated Integration Code</h3>
+          <p className="mt-1 text-sm text-gray-500">Generate and deploy custom integration code for this customer's CRM</p>
         </div>
         <div className="px-4 py-5 sm:px-6">
-          <div className="mb-4">
+          <div className="mb-4 flex flex-wrap gap-2">
             <button
               onClick={handleGenerateCode}
               disabled={generatingCode}
-              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 mr-2"
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
             >
-              {generatingCode ? 'Generating...' : 'Generate Integration Code'}
+              {generatingCode ? 'Generating...' : 'Generate New Code'}
             </button>
             {generatedCode && (
-              <button
-                onClick={handleDeployLambda}
-                disabled={deploying}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-              >
-                {deploying ? 'Deploying...' : 'Deploy to Lambda'}
-              </button>
+              <>
+                <button
+                  onClick={handleCopyCode}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  Copy Code
+                </button>
+                <button
+                  onClick={handleDownloadCode}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  Download
+                </button>
+                <button
+                  onClick={handleDeployLambda}
+                  disabled={deploying}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {deploying ? 'Deploying...' : 'Deploy to Lambda'}
+                </button>
+              </>
             )}
           </div>
+
+          {loadingExisting && (
+            <div className="text-sm text-gray-500 mb-4">Loading existing code...</div>
+          )}
+
           {generatedCode && (
-            <div className="mt-4">
-              <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-xs">
-                <code>{generatedCode}</code>
-              </pre>
+            <>
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Generated Code:</h4>
+                <div className="relative">
+                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-xs max-h-96 overflow-y-auto">
+                    <code>{generatedCode}</code>
+                  </pre>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">How to Use This Code:</h4>
+                <ol className="list-decimal list-inside text-sm text-blue-800 space-y-2">
+                  <li>
+                    <strong>Deploy to Lambda:</strong> Click the "Deploy to Lambda" button above to automatically deploy this code as an AWS Lambda function.
+                  </li>
+                  <li>
+                    <strong>Manual Deployment:</strong> Download the code and deploy it manually to AWS Lambda or your preferred serverless platform.
+                  </li>
+                  <li>
+                    <strong>Configure Environment Variables:</strong> Set the following environment variables in your Lambda:
+                    <ul className="list-disc list-inside ml-6 mt-1">
+                      <li><code className="bg-white px-1 rounded">CRM_ENDPOINT</code>: {customer.crmEndpoint}</li>
+                      <li><code className="bg-white px-1 rounded">CRM_API_KEY</code>: Your CRM API key</li>
+                      <li><code className="bg-white px-1 rounded">CRM_TYPE</code>: {customer.crmType}</li>
+                    </ul>
+                  </li>
+                  <li>
+                    <strong>Test the Function:</strong> Use the AWS Lambda test console or invoke via API Gateway.
+                  </li>
+                  <li>
+                    <strong>Integration:</strong> This Lambda will be automatically invoked when deliveries are processed for this customer.
+                  </li>
+                </ol>
+              </div>
+
+              {codeId && (
+                <div className="mt-4 text-xs text-gray-500">
+                  Code ID: {codeId}
+                </div>
+              )}
+            </>
+          )}
+
+          {!generatedCode && !loadingExisting && (
+            <div className="text-center py-8 text-gray-500">
+              <p className="mb-2">No integration code generated yet.</p>
+              <p className="text-sm">Click "Generate New Code" to create AI-powered integration code for this customer's CRM.</p>
             </div>
           )}
         </div>
