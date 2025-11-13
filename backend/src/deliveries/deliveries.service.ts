@@ -25,7 +25,8 @@ export interface Delivery {
 @Injectable()
 export class DeliveriesService {
   private readonly deliveriesTable: string;
-  private readonly leadFilesBucket: string;
+  private readonly s3Bucket: string;
+  private readonly leadFilesPrefix: string;
 
   constructor(
     private awsClients: AwsClientsService,
@@ -33,7 +34,9 @@ export class DeliveriesService {
     private configService: ConfigService,
   ) {
     this.deliveriesTable = this.configService.get('DELIVERIES_TABLE');
-    this.leadFilesBucket = this.configService.get('LEAD_FILES_BUCKET');
+    // Support both unified bucket and legacy separate bucket approaches
+    this.s3Bucket = this.configService.get('S3_BUCKET') || this.configService.get('LEAD_FILES_BUCKET');
+    this.leadFilesPrefix = this.configService.get('LEAD_FILES_PREFIX') || '';
   }
 
   async create(data: Partial<Delivery>): Promise<Delivery> {
@@ -263,10 +266,10 @@ export class DeliveriesService {
   }
 
   async getUploadUrl(filename: string, customerId: string): Promise<{ uploadUrl: string; s3Key: string }> {
-    const s3Key = `customers/${customerId}/leads/${Date.now()}-${filename}`;
+    const s3Key = `${this.leadFilesPrefix}customers/${customerId}/leads/${Date.now()}-${filename}`;
 
     const command = new PutObjectCommand({
-      Bucket: this.leadFilesBucket,
+      Bucket: this.s3Bucket,
       Key: s3Key,
       ContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });

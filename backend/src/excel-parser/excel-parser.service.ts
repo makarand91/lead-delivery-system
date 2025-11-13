@@ -12,20 +12,21 @@ export interface ParsedExcelData {
 
 @Injectable()
 export class ExcelParserService {
-  private readonly leadFilesBucket: string;
+  private readonly s3Bucket: string;
 
   constructor(
     private awsClients: AwsClientsService,
     private configService: ConfigService,
   ) {
-    this.leadFilesBucket = this.configService.get('LEAD_FILES_BUCKET');
+    // Support both unified bucket and legacy separate bucket approaches
+    this.s3Bucket = this.configService.get('S3_BUCKET') || this.configService.get('LEAD_FILES_BUCKET');
   }
 
   async parseExcelFromS3(s3Key: string): Promise<ParsedExcelData> {
     // Get file from S3
     const response = await this.awsClients.s3Client.send(
       new GetObjectCommand({
-        Bucket: this.leadFilesBucket,
+        Bucket: this.s3Bucket,
         Key: s3Key,
       }),
     );

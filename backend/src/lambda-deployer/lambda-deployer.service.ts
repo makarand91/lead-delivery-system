@@ -18,14 +18,17 @@ export interface DeployLambdaRequest {
 
 @Injectable()
 export class LambdaDeployerService {
-  private readonly integrationCodeBucket: string;
+  private readonly s3Bucket: string;
+  private readonly integrationCodePrefix: string;
   private readonly customerLambdaRoleArn: string;
 
   constructor(
     private awsClients: AwsClientsService,
     private configService: ConfigService,
   ) {
-    this.integrationCodeBucket = this.configService.get('INTEGRATION_CODE_BUCKET');
+    // Support both unified bucket and legacy separate bucket approaches
+    this.s3Bucket = this.configService.get('S3_BUCKET') || this.configService.get('INTEGRATION_CODE_BUCKET');
+    this.integrationCodePrefix = this.configService.get('INTEGRATION_CODE_PREFIX') || '';
     this.customerLambdaRoleArn = this.configService.get('CUSTOMER_LAMBDA_ROLE_ARN');
   }
 
@@ -76,11 +79,11 @@ export class LambdaDeployerService {
   }
 
   private async saveCodeToS3(customerId: string, code: string): Promise<void> {
-    const key = `customers/${customerId}/integration-code/${Date.now()}.js`;
+    const key = `${this.integrationCodePrefix}customers/${customerId}/integration-code/${Date.now()}.js`;
 
     await this.awsClients.s3Client.send(
       new PutObjectCommand({
-        Bucket: this.integrationCodeBucket,
+        Bucket: this.s3Bucket,
         Key: key,
         Body: code,
         ContentType: 'application/javascript',
