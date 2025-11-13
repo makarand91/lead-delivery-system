@@ -17,10 +17,11 @@ const Customers = () => {
     try {
       apiService.setTokenProvider(getToken);
       const data = await apiService.getCustomers();
-      setCustomers(data);
+      setCustomers(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error('Failed to load customers');
       console.error(error);
+      setCustomers([]); // Ensure we always have an array
     } finally {
       setLoading(false);
     }

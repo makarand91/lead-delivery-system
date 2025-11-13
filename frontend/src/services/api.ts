@@ -33,7 +33,7 @@ class ApiService {
   // Customers
   async getCustomers() {
     const response = await this.api.get('/customers');
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async getCustomer(id: string) {
@@ -78,7 +78,7 @@ class ApiService {
   // Deliveries
   async getDeliveries(params?: { customerId?: string; status?: string }) {
     const response = await this.api.get('/deliveries', { params });
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async getDelivery(id: string) {
@@ -104,7 +104,7 @@ class ApiService {
     const response = await this.api.get('/mappings', {
       params: { customerId },
     });
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async getMapping(customerId: string, mappingId: string) {
@@ -136,7 +136,7 @@ class ApiService {
   // Transformations
   async getTransformations() {
     const response = await this.api.get('/transformations');
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async applyTransformation(data: any) {
@@ -152,17 +152,17 @@ class ApiService {
   // Logs
   async getDeliveryLogs(deliveryId: string) {
     const response = await this.api.get(`/logs/delivery/${deliveryId}`);
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async getFailedLeads(deliveryId: string) {
     const response = await this.api.get(`/logs/delivery/${deliveryId}/failed`);
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async searchLogs(query: string) {
     const response = await this.api.get('/logs/search', { params: { q: query } });
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   // Upload file to S3
