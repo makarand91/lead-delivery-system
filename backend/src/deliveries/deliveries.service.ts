@@ -265,6 +265,22 @@ export class DeliveriesService {
     );
   }
 
+  async uploadFileToS3(fileBuffer: Buffer, filename: string, customerId: string): Promise<string> {
+    const s3Key = `${this.leadFilesPrefix}customers/${customerId}/leads/${Date.now()}-${filename}`;
+
+    await this.awsClients.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.s3Bucket,
+        Key: s3Key,
+        Body: fileBuffer,
+        ContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+    );
+
+    return s3Key;
+  }
+
+  // Legacy method - kept for backward compatibility but not recommended
   async getUploadUrl(filename: string, customerId: string): Promise<{ uploadUrl: string; s3Key: string }> {
     const s3Key = `${this.leadFilesPrefix}customers/${customerId}/leads/${Date.now()}-${filename}`;
 

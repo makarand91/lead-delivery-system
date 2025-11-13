@@ -91,6 +91,20 @@ class ApiService {
     return response.data;
   }
 
+  async uploadDeliveryFile(data: { file: File; customerId: string }) {
+    const formData = new FormData();
+    formData.append('file', data.file);
+    formData.append('customerId', data.customerId);
+
+    const response = await this.api.post('/deliveries/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  // Legacy method - not recommended (exposes AWS URLs to frontend)
   async getUploadUrl(data: { filename: string; customerId: string }) {
     const response = await this.api.post('/deliveries/upload-url', data);
     return response.data;

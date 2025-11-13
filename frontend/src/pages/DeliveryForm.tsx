@@ -69,24 +69,11 @@ const DeliveryForm = () => {
 
     setUploading(true);
     try {
-      // Get presigned URL
-      const { uploadUrl, s3Key } = await apiService.getUploadUrl({
-        filename: formData.file.name,
+      // Upload file via backend (more secure)
+      const { s3Key } = await apiService.uploadDeliveryFile({
+        file: formData.file,
         customerId: formData.customerId,
       });
-
-      // Upload file to S3
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: formData.file,
-        headers: {
-          'Content-Type': formData.file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to S3');
-      }
 
       setFormData({ ...formData, s3FileKey: s3Key });
       toast.success('File uploaded successfully!');

@@ -7,8 +7,12 @@ import {
   Query,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { DeliveriesService, Delivery } from './deliveries.service';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -18,6 +22,38 @@ import { AuthGuard } from '../auth/auth.guard';
 @UseGuards(AuthGuard)
 export class DeliveriesController {
   constructor(private deliveriesService: DeliveriesService) {}
+
+  @Post('upload')
+  @ApiOperation({ summary: 'Upload Excel file and create delivery' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('customerId') customerId: string,
+    @Body('mappingId') mappingId: string,
+    @Body('scheduledAt') scheduledAt: string,
+    @Request() req,
+  ): Promise<{ s3Key: string; message: string }> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    if (!customerId) {
+      throw new BadRequestException('customerId is required');
+    }
+
+    // Upload file to S3
+    const s3Key = await this.deliveriesService.uploadFileToS3(
+      file.buffer,
+      file.originalname,
+      customerId,
+    );
+
+    return {
+      s3Key,
+      message: 'File uploaded successfully',
+    };
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a new delivery' })
