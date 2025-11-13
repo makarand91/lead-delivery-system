@@ -120,6 +120,23 @@ class ApiService {
     return response.data;
   }
 
+  async getDeliveryPreview(id: string, limit?: number) {
+    const response = await this.api.get(`/deliveries/${id}/preview`, {
+      params: { limit },
+    });
+    return response.data;
+  }
+
+  async approveDelivery(id: string) {
+    const response = await this.api.post(`/deliveries/${id}/approve`);
+    return response.data;
+  }
+
+  async rejectDelivery(id: string, reason: string) {
+    const response = await this.api.post(`/deliveries/${id}/reject`, { reason });
+    return response.data;
+  }
+
   // Legacy method - not recommended (exposes AWS URLs to frontend)
   async getUploadUrl(data: { filename: string; customerId: string }) {
     const response = await this.api.post('/deliveries/upload-url', data);
