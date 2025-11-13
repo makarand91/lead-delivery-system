@@ -3,7 +3,8 @@
 # Setup DynamoDB Tables in AWS Account
 # This script creates all required DynamoDB tables in your AWS account
 
-set -e
+# Note: NOT using set -e so script continues even if one table fails
+# set -e
 
 # Configuration
 REGION=${AWS_REGION:-us-east-1}
