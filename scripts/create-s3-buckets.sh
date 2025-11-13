@@ -81,32 +81,23 @@ create_bucket() {
     printf "\n"
 }
 
-# 1. Lead Files Bucket
-printf "${GREEN}1. Creating Lead Files Bucket${NC}\n"
+# Create single unified bucket
+BUCKET_NAME="${BUCKET_PREFIX}-${AWS_ACCOUNT_ID}"
+printf "${GREEN}Creating unified storage bucket${NC}\n"
 create_bucket \
-    "${BUCKET_PREFIX}-lead-files-${AWS_ACCOUNT_ID}" \
-    "Stores uploaded Excel files with leads"
+    "${BUCKET_NAME}" \
+    "Unified storage for lead files, integration code, and warehouse data"
 
-# 2. Integration Code Bucket
-printf "${GREEN}2. Creating Integration Code Bucket${NC}\n"
-create_bucket \
-    "${BUCKET_PREFIX}-integration-code-${AWS_ACCOUNT_ID}" \
-    "Stores AI-generated integration code"
-
-# 3. Warehouse Files Bucket
-printf "${GREEN}3. Creating Warehouse Files Bucket${NC}\n"
-WAREHOUSE_BUCKET="${BUCKET_PREFIX}-warehouse-files-${AWS_ACCOUNT_ID}"
-create_bucket \
-    "${WAREHOUSE_BUCKET}" \
-    "Stores formatted files for data warehouse"
-
-# Add lifecycle policy to warehouse bucket
-printf "${YELLOW}Adding lifecycle policy to warehouse bucket...${NC}\n"
-cat > /tmp/warehouse-lifecycle.json <<EOF
+# Add lifecycle policy with prefix-based rules
+printf "${YELLOW}Configuring lifecycle policies...${NC}\n"
+cat > /tmp/bucket-lifecycle.json <<EOF
 {
   "Rules": [
     {
-      "Id": "TransitionToIA",
+      "Id": "WarehouseTransitionToIA",
+      "Filter": {
+        "Prefix": "warehouse/"
+      },
       "Status": "Enabled",
       "Transitions": [
         {
@@ -124,34 +115,59 @@ cat > /tmp/warehouse-lifecycle.json <<EOF
 EOF
 
 aws s3api put-bucket-lifecycle-configuration \
-    --bucket ${WAREHOUSE_BUCKET} \
-    --lifecycle-configuration file:///tmp/warehouse-lifecycle.json \
+    --bucket ${BUCKET_NAME} \
+    --lifecycle-configuration file:///tmp/bucket-lifecycle.json \
     --region ${REGION}
 
 printf "${GREEN}✓ Lifecycle policy applied${NC}\n"
 printf "\n"
 
+# Create folder structure (optional, but helps with organization)
+printf "${YELLOW}Creating folder structure...${NC}\n"
+for prefix in "lead-files/" "integration-code/" "warehouse/"; do
+    aws s3api put-object \
+        --bucket ${BUCKET_NAME} \
+        --key "${prefix}" \
+        --region ${REGION} > /dev/null 2>&1 || true
+done
+printf "${GREEN}✓ Folder structure created${NC}\n"
+printf "\n"
+
 printf "\n"
 printf "${GREEN}========================================${NC}\n"
-printf "${GREEN}All Buckets Created Successfully!${NC}\n"
+printf "${GREEN}Bucket Created Successfully!${NC}\n"
 printf "${GREEN}========================================${NC}\n"
 printf "\n"
 
-# List all buckets
-printf "${YELLOW}Listing all buckets:${NC}\n"
-aws s3 ls | grep "${BUCKET_PREFIX}"
+# List bucket contents
+printf "${YELLOW}Verifying bucket:${NC}\n"
+aws s3 ls s3://${BUCKET_NAME}/ --region ${REGION}
 
 printf "\n"
 printf "${GREEN}Setup complete!${NC}\n"
 printf "\n"
 printf "Update your ${YELLOW}backend/.env${NC} file with:\n"
-printf "  LEAD_FILES_BUCKET=${BUCKET_PREFIX}-lead-files-${AWS_ACCOUNT_ID}\n"
-printf "  INTEGRATION_CODE_BUCKET=${BUCKET_PREFIX}-integration-code-${AWS_ACCOUNT_ID}\n"
-printf "  WAREHOUSE_FILES_BUCKET=${BUCKET_PREFIX}-warehouse-files-${AWS_ACCOUNT_ID}\n"
+printf "\n"
+printf "  # Single bucket with prefixes (recommended)\n"
+printf "  S3_BUCKET=${BUCKET_NAME}\n"
+printf "  LEAD_FILES_PREFIX=lead-files/\n"
+printf "  INTEGRATION_CODE_PREFIX=integration-code/\n"
+printf "  WAREHOUSE_PREFIX=warehouse/\n"
+printf "\n"
+printf "  # OR keep separate bucket variables (legacy compatibility)\n"
+printf "  LEAD_FILES_BUCKET=${BUCKET_NAME}\n"
+printf "  INTEGRATION_CODE_BUCKET=${BUCKET_NAME}\n"
+printf "  WAREHOUSE_FILES_BUCKET=${BUCKET_NAME}\n"
 printf "\n"
 printf "${YELLOW}Bucket Features:${NC}\n"
 printf "  ✓ Versioning enabled\n"
 printf "  ✓ Public access blocked\n"
 printf "  ✓ Encryption enabled (AES256)\n"
-printf "  ✓ Warehouse: Lifecycle transitions (IA @ 30d, Glacier @ 90d)\n"
+printf "  ✓ Organized with prefixes: lead-files/, integration-code/, warehouse/\n"
+printf "  ✓ Warehouse prefix: Lifecycle transitions (IA @ 30d, Glacier @ 90d)\n"
+printf "\n"
+printf "${YELLOW}Bucket Structure:${NC}\n"
+printf "  s3://${BUCKET_NAME}/lead-files/          - Excel files with leads\n"
+printf "  s3://${BUCKET_NAME}/integration-code/    - AI-generated code\n"
+printf "  s3://${BUCKET_NAME}/warehouse/           - Formatted warehouse files\n"
 printf "\n"
