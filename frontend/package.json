@@ -1,6 +1,7 @@
 {
   "name": "lead-delivery-frontend",
   "version": "1.0.0",
+  "type": "module",
   "description": "React frontend for lead delivery system",
   "scripts": {
     "dev": "vite",
