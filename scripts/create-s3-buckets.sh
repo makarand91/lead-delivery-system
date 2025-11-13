@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Create S3 Buckets for Local Development
 # This script creates all required S3 buckets in your AWS account
@@ -16,45 +16,45 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}S3 Buckets Setup${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
-echo -e "Region: ${YELLOW}${REGION}${NC}"
-echo -e "Account ID: ${YELLOW}${AWS_ACCOUNT_ID}${NC}"
-echo -e "Bucket Prefix: ${YELLOW}${BUCKET_PREFIX}${NC}"
-echo ""
+printf "${GREEN}========================================${NC}\n"
+printf "${GREEN}S3 Buckets Setup${NC}\n"
+printf "${GREEN}========================================${NC}\n"
+printf "\n"
+printf "Region: ${YELLOW}${REGION}${NC}\n"
+printf "Account ID: ${YELLOW}${AWS_ACCOUNT_ID}${NC}\n"
+printf "Bucket Prefix: ${YELLOW}${BUCKET_PREFIX}${NC}\n"
+printf "\n"
 
 # Check AWS credentials
-echo -e "${YELLOW}Checking AWS credentials...${NC}"
+printf "${YELLOW}Checking AWS credentials...${NC}\n"
 aws sts get-caller-identity --region ${REGION} > /dev/null 2>&1 || {
-    echo -e "${RED}Error: AWS credentials not configured${NC}"
-    echo "Please run: aws configure"
+    printf "${RED}Error: AWS credentials not configured${NC}\n"
+    printf "Please run: aws configure\n"
     exit 1
 }
-echo -e "${GREEN}✓ AWS credentials valid${NC}"
-echo ""
+printf "${GREEN}✓ AWS credentials valid${NC}\n"
+printf "\n"
 
 # Function to create bucket
 create_bucket() {
     local bucket_name=$1
     local description=$2
 
-    echo -e "${YELLOW}Creating bucket: ${bucket_name}${NC}"
-    echo -e "  Purpose: ${description}"
+    printf "${YELLOW}Creating bucket: ${bucket_name}${NC}\n"
+    printf "  Purpose: ${description}\n"
 
     # Create bucket
     if [ "${REGION}" = "us-east-1" ]; then
         aws s3api create-bucket \
             --bucket ${bucket_name} \
             --region ${REGION} \
-            2>/dev/null || echo -e "${RED}  Bucket already exists${NC}"
+            2>/dev/null || printf "${RED}  Bucket already exists${NC}\n"
     else
         aws s3api create-bucket \
             --bucket ${bucket_name} \
             --region ${REGION} \
             --create-bucket-configuration LocationConstraint=${REGION} \
-            2>/dev/null || echo -e "${RED}  Bucket already exists${NC}"
+            2>/dev/null || printf "${RED}  Bucket already exists${NC}\n"
     fi
 
     # Enable versioning
@@ -77,31 +77,31 @@ create_bucket() {
             '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' \
         --region ${REGION}
 
-    echo -e "${GREEN}✓ Bucket ${bucket_name} configured${NC}"
-    echo ""
+    printf "${GREEN}✓ Bucket ${bucket_name} configured${NC}\n"
+    printf "\n"
 }
 
 # 1. Lead Files Bucket
-echo -e "${GREEN}1. Creating Lead Files Bucket${NC}"
+printf "${GREEN}1. Creating Lead Files Bucket${NC}\n"
 create_bucket \
     "${BUCKET_PREFIX}-lead-files-${AWS_ACCOUNT_ID}" \
     "Stores uploaded Excel files with leads"
 
 # 2. Integration Code Bucket
-echo -e "${GREEN}2. Creating Integration Code Bucket${NC}"
+printf "${GREEN}2. Creating Integration Code Bucket${NC}\n"
 create_bucket \
     "${BUCKET_PREFIX}-integration-code-${AWS_ACCOUNT_ID}" \
     "Stores AI-generated integration code"
 
 # 3. Warehouse Files Bucket
-echo -e "${GREEN}3. Creating Warehouse Files Bucket${NC}"
+printf "${GREEN}3. Creating Warehouse Files Bucket${NC}\n"
 WAREHOUSE_BUCKET="${BUCKET_PREFIX}-warehouse-files-${AWS_ACCOUNT_ID}"
 create_bucket \
     "${WAREHOUSE_BUCKET}" \
     "Stores formatted files for data warehouse"
 
 # Add lifecycle policy to warehouse bucket
-echo -e "${YELLOW}Adding lifecycle policy to warehouse bucket...${NC}"
+printf "${YELLOW}Adding lifecycle policy to warehouse bucket...${NC}\n"
 cat > /tmp/warehouse-lifecycle.json <<EOF
 {
   "Rules": [
@@ -128,30 +128,30 @@ aws s3api put-bucket-lifecycle-configuration \
     --lifecycle-configuration file:///tmp/warehouse-lifecycle.json \
     --region ${REGION}
 
-echo -e "${GREEN}✓ Lifecycle policy applied${NC}"
-echo ""
+printf "${GREEN}✓ Lifecycle policy applied${NC}\n"
+printf "\n"
 
-echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}All Buckets Created Successfully!${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
+printf "\n"
+printf "${GREEN}========================================${NC}\n"
+printf "${GREEN}All Buckets Created Successfully!${NC}\n"
+printf "${GREEN}========================================${NC}\n"
+printf "\n"
 
 # List all buckets
-echo -e "${YELLOW}Listing all buckets:${NC}"
+printf "${YELLOW}Listing all buckets:${NC}\n"
 aws s3 ls | grep "${BUCKET_PREFIX}"
 
-echo ""
-echo -e "${GREEN}Setup complete!${NC}"
-echo ""
-echo -e "Update your ${YELLOW}backend/.env${NC} file with:"
-echo -e "  LEAD_FILES_BUCKET=${BUCKET_PREFIX}-lead-files-${AWS_ACCOUNT_ID}"
-echo -e "  INTEGRATION_CODE_BUCKET=${BUCKET_PREFIX}-integration-code-${AWS_ACCOUNT_ID}"
-echo -e "  WAREHOUSE_FILES_BUCKET=${BUCKET_PREFIX}-warehouse-files-${AWS_ACCOUNT_ID}"
-echo ""
-echo -e "${YELLOW}Bucket Features:${NC}"
-echo -e "  ✓ Versioning enabled"
-echo -e "  ✓ Public access blocked"
-echo -e "  ✓ Encryption enabled (AES256)"
-echo -e "  ✓ Warehouse: Lifecycle transitions (IA @ 30d, Glacier @ 90d)"
-echo ""
+printf "\n"
+printf "${GREEN}Setup complete!${NC}\n"
+printf "\n"
+printf "Update your ${YELLOW}backend/.env${NC} file with:\n"
+printf "  LEAD_FILES_BUCKET=${BUCKET_PREFIX}-lead-files-${AWS_ACCOUNT_ID}\n"
+printf "  INTEGRATION_CODE_BUCKET=${BUCKET_PREFIX}-integration-code-${AWS_ACCOUNT_ID}\n"
+printf "  WAREHOUSE_FILES_BUCKET=${BUCKET_PREFIX}-warehouse-files-${AWS_ACCOUNT_ID}\n"
+printf "\n"
+printf "${YELLOW}Bucket Features:${NC}\n"
+printf "  ✓ Versioning enabled\n"
+printf "  ✓ Public access blocked\n"
+printf "  ✓ Encryption enabled (AES256)\n"
+printf "  ✓ Warehouse: Lifecycle transitions (IA @ 30d, Glacier @ 90d)\n"
+printf "\n"

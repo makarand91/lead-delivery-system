@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Complete Local Development Setup Script
 # This script sets up everything needed to run the app locally
@@ -12,10 +12,10 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}Lead Delivery System - Local Setup${NC}"
-echo -e "${BLUE}========================================${NC}"
-echo ""
+printf "${BLUE}========================================${NC}\n"
+printf "${BLUE}Lead Delivery System - Local Setup${NC}\n"
+printf "${BLUE}========================================${NC}\n"
+printf "\n"
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,31 +25,31 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 USE_DYNAMODB_LOCAL=${USE_DYNAMODB_LOCAL:-false}
 USE_AWS=${USE_AWS:-true}
 
-echo -e "${YELLOW}Setup Configuration:${NC}"
-echo -e "  Project Root: ${PROJECT_ROOT}"
-echo -e "  Use DynamoDB Local: ${USE_DYNAMODB_LOCAL}"
-echo -e "  Use AWS: ${USE_AWS}"
-echo ""
+printf "${YELLOW}Setup Configuration:${NC}\n"
+printf "  Project Root: ${PROJECT_ROOT}\n"
+printf "  Use DynamoDB Local: ${USE_DYNAMODB_LOCAL}\n"
+printf "  Use AWS: ${USE_AWS}\n"
+printf "\n"
 
 # Step 1: Check Prerequisites
-echo -e "${GREEN}Step 1: Checking Prerequisites${NC}"
-echo ""
+printf "${GREEN}Step 1: Checking Prerequisites${NC}\n"
+printf "\n"
 
 # Check Node.js
 if command -v node &> /dev/null; then
     NODE_VERSION=$(node --version)
-    echo -e "${GREEN}✓ Node.js: ${NODE_VERSION}${NC}"
+    printf "${GREEN}✓ Node.js: ${NODE_VERSION}${NC}\n"
 else
-    echo -e "${RED}✗ Node.js not found${NC}"
+    printf "${RED}✗ Node.js not found${NC}\n"
     exit 1
 fi
 
 # Check npm
 if command -v npm &> /dev/null; then
     NPM_VERSION=$(npm --version)
-    echo -e "${GREEN}✓ npm: ${NPM_VERSION}${NC}"
+    printf "${GREEN}✓ npm: ${NPM_VERSION}${NC}\n"
 else
-    echo -e "${RED}✗ npm not found${NC}"
+    printf "${RED}✗ npm not found${NC}\n"
     exit 1
 fi
 
@@ -57,147 +57,147 @@ fi
 if [ "$USE_AWS" = true ]; then
     if command -v aws &> /dev/null; then
         AWS_VERSION=$(aws --version 2>&1 | cut -d' ' -f1)
-        echo -e "${GREEN}✓ AWS CLI: ${AWS_VERSION}${NC}"
+        printf "${GREEN}✓ AWS CLI: ${AWS_VERSION}${NC}\n"
 
         # Check AWS credentials
         if aws sts get-caller-identity &> /dev/null; then
             AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-            echo -e "${GREEN}✓ AWS Credentials: Account ${AWS_ACCOUNT}${NC}"
+            printf "${GREEN}✓ AWS Credentials: Account ${AWS_ACCOUNT}${NC}\n"
         else
-            echo -e "${RED}✗ AWS credentials not configured${NC}"
-            echo -e "${YELLOW}  Run: aws configure${NC}"
+            printf "${RED}✗ AWS credentials not configured${NC}\n"
+            printf "${YELLOW}  Run: aws configure${NC}\n"
             exit 1
         fi
     else
-        echo -e "${RED}✗ AWS CLI not found${NC}"
-        echo -e "${YELLOW}  Install: https://aws.amazon.com/cli/${NC}"
+        printf "${RED}✗ AWS CLI not found${NC}\n"
+        printf "${YELLOW}  Install: https://aws.amazon.com/cli/${NC}\n"
         exit 1
     fi
 fi
 
-echo ""
+printf "\n"
 
 # Step 2: Install Dependencies
-echo -e "${GREEN}Step 2: Installing Dependencies${NC}"
-echo ""
+printf "${GREEN}Step 2: Installing Dependencies${NC}\n"
+printf "\n"
 
 cd "$PROJECT_ROOT"
 
 if [ ! -d "backend/node_modules" ]; then
-    echo -e "${YELLOW}Installing backend dependencies...${NC}"
+    printf "${YELLOW}Installing backend dependencies...${NC}\n"
     cd backend && npm install && cd ..
-    echo -e "${GREEN}✓ Backend dependencies installed${NC}"
+    printf "${GREEN}✓ Backend dependencies installed${NC}\n"
 else
-    echo -e "${GREEN}✓ Backend dependencies already installed${NC}"
+    printf "${GREEN}✓ Backend dependencies already installed${NC}\n"
 fi
 
 if [ ! -d "frontend/node_modules" ]; then
-    echo -e "${YELLOW}Installing frontend dependencies...${NC}"
+    printf "${YELLOW}Installing frontend dependencies...${NC}\n"
     cd frontend && npm install && cd ..
-    echo -e "${GREEN}✓ Frontend dependencies installed${NC}"
+    printf "${GREEN}✓ Frontend dependencies installed${NC}\n"
 else
-    echo -e "${GREEN}✓ Frontend dependencies already installed${NC}"
+    printf "${GREEN}✓ Frontend dependencies already installed${NC}\n"
 fi
 
-echo ""
+printf "\n"
 
 # Step 3: Setup Environment Files
-echo -e "${GREEN}Step 3: Setting up Environment Files${NC}"
-echo ""
+printf "${GREEN}Step 3: Setting up Environment Files${NC}\n"
+printf "\n"
 
 # Backend .env
 if [ ! -f "backend/.env" ]; then
-    echo -e "${YELLOW}Creating backend/.env...${NC}"
+    printf "${YELLOW}Creating backend/.env...${NC}\n"
     cp backend/.env.example backend/.env
-    echo -e "${GREEN}✓ backend/.env created${NC}"
+    printf "${GREEN}✓ backend/.env created${NC}\n"
 else
-    echo -e "${GREEN}✓ backend/.env exists${NC}"
+    printf "${GREEN}✓ backend/.env exists${NC}\n"
 fi
 
 # Frontend .env
 if [ ! -f "frontend/.env" ]; then
     if [ -f "frontend/.env.example" ]; then
-        echo -e "${YELLOW}Creating frontend/.env...${NC}"
+        printf "${YELLOW}Creating frontend/.env...${NC}\n"
         cp frontend/.env.example frontend/.env
-        echo -e "${GREEN}✓ frontend/.env created${NC}"
+        printf "${GREEN}✓ frontend/.env created${NC}\n"
     fi
 else
-    echo -e "${GREEN}✓ frontend/.env exists${NC}"
+    printf "${GREEN}✓ frontend/.env exists${NC}\n"
 fi
 
-echo ""
+printf "\n"
 
 # Step 4: Setup DynamoDB
-echo -e "${GREEN}Step 4: Setting up DynamoDB${NC}"
-echo ""
+printf "${GREEN}Step 4: Setting up DynamoDB${NC}\n"
+printf "\n"
 
 if [ "$USE_DYNAMODB_LOCAL" = true ]; then
-    echo -e "${YELLOW}Using DynamoDB Local${NC}"
-    echo -e "${YELLOW}Make sure DynamoDB Local is running on http://localhost:8000${NC}"
-    echo ""
+    printf "${YELLOW}Using DynamoDB Local${NC}\n"
+    printf "${YELLOW}Make sure DynamoDB Local is running on http://localhost:8000${NC}\n"
+    printf "\n"
     read -p "Press Enter to create tables in DynamoDB Local, or Ctrl+C to cancel..."
     bash "$SCRIPT_DIR/setup-dynamodb-local.sh"
 elif [ "$USE_AWS" = true ]; then
-    echo -e "${YELLOW}Creating DynamoDB tables in AWS${NC}"
-    echo -e "${YELLOW}This will create tables in your AWS account${NC}"
-    echo ""
+    printf "${YELLOW}Creating DynamoDB tables in AWS${NC}\n"
+    printf "${YELLOW}This will create tables in your AWS account${NC}\n"
+    printf "\n"
     read -p "Press Enter to continue, or Ctrl+C to cancel..."
     bash "$SCRIPT_DIR/setup-dynamodb-aws.sh"
 else
-    echo -e "${YELLOW}Skipping DynamoDB setup${NC}"
+    printf "${YELLOW}Skipping DynamoDB setup${NC}\n"
 fi
 
-echo ""
+printf "\n"
 
 # Step 5: Setup S3 Buckets
 if [ "$USE_AWS" = true ]; then
-    echo -e "${GREEN}Step 5: Setting up S3 Buckets${NC}"
-    echo ""
-    echo -e "${YELLOW}Creating S3 buckets in AWS${NC}"
+    printf "${GREEN}Step 5: Setting up S3 Buckets${NC}\n"
+    printf "\n"
+    printf "${YELLOW}Creating S3 buckets in AWS${NC}\n"
     read -p "Press Enter to continue, or Ctrl+C to skip..."
     bash "$SCRIPT_DIR/create-s3-buckets.sh"
-    echo ""
+    printf "\n"
 fi
 
 # Step 6: Build Backend
-echo -e "${GREEN}Step 6: Building Backend${NC}"
-echo ""
+printf "${GREEN}Step 6: Building Backend${NC}\n"
+printf "\n"
 
 cd "$PROJECT_ROOT/backend"
-echo -e "${YELLOW}Building backend...${NC}"
+printf "${YELLOW}Building backend...${NC}\n"
 npm run build
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Backend build successful${NC}"
+    printf "${GREEN}✓ Backend build successful${NC}\n"
 else
-    echo -e "${RED}✗ Backend build failed${NC}"
+    printf "${RED}✗ Backend build failed${NC}\n"
     exit 1
 fi
 
-echo ""
+printf "\n"
 
 # Step 7: Summary
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}Setup Complete!${NC}"
-echo -e "${BLUE}========================================${NC}"
-echo ""
-echo -e "${GREEN}Next Steps:${NC}"
-echo ""
-echo -e "1. ${YELLOW}Update configuration${NC}"
-echo -e "   Edit ${BLUE}backend/.env${NC} with your actual AWS resource names"
-echo ""
-echo -e "2. ${YELLOW}Start the backend${NC}"
-echo -e "   cd backend"
-echo -e "   npm run start:dev"
-echo ""
-echo -e "3. ${YELLOW}Start the frontend${NC} (in another terminal)"
-echo -e "   cd frontend"
-echo -e "   npm run dev"
-echo ""
-echo -e "4. ${YELLOW}Access the application${NC}"
-echo -e "   Backend:  http://localhost:3000"
-echo -e "   Frontend: http://localhost:5173"
-echo -e "   API Docs: http://localhost:3000/api"
-echo ""
-echo -e "${GREEN}For more details, see:${NC} docs/LOCAL_DEVELOPMENT.md"
-echo ""
+printf "${BLUE}========================================${NC}\n"
+printf "${BLUE}Setup Complete!${NC}\n"
+printf "${BLUE}========================================${NC}\n"
+printf "\n"
+printf "${GREEN}Next Steps:${NC}\n"
+printf "\n"
+printf "1. ${YELLOW}Update configuration${NC}\n"
+printf "   Edit ${BLUE}backend/.env${NC} with your actual AWS resource names\n"
+printf "\n"
+printf "2. ${YELLOW}Start the backend${NC}\n"
+printf "   cd backend\n"
+printf "   npm run start:dev\n"
+printf "\n"
+printf "3. ${YELLOW}Start the frontend${NC} (in another terminal)\n"
+printf "   cd frontend\n"
+printf "   npm run dev\n"
+printf "\n"
+printf "4. ${YELLOW}Access the application${NC}\n"
+printf "   Backend:  http://localhost:3000\n"
+printf "   Frontend: http://localhost:5173\n"
+printf "   API Docs: http://localhost:3000/api\n"
+printf "\n"
+printf "${GREEN}For more details, see:${NC} docs/LOCAL_DEVELOPMENT.md\n"
+printf "\n"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Diagnostic script to reveal actual DynamoDB table creation errors
 # This script shows real error messages instead of suppressing them
@@ -15,34 +15,34 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}DynamoDB Diagnostic Check${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
-echo -e "Region: ${YELLOW}${REGION}${NC}"
-echo -e "Table Prefix: ${YELLOW}${TABLE_PREFIX}${NC}"
-echo ""
+printf "${GREEN}========================================${NC}\n"
+printf "${GREEN}DynamoDB Diagnostic Check${NC}\n"
+printf "${GREEN}========================================${NC}\n"
+printf "\n"
+printf "Region: ${YELLOW}${REGION}${NC}\n"
+printf "Table Prefix: ${YELLOW}${TABLE_PREFIX}${NC}\n"
+printf "\n"
 
 # Check AWS credentials
-echo -e "${YELLOW}Checking AWS credentials...${NC}"
+printf "${YELLOW}Checking AWS credentials...${NC}\n"
 if aws sts get-caller-identity --region ${REGION} > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ AWS credentials valid${NC}"
+    printf "${GREEN}✓ AWS credentials valid${NC}\n"
     aws sts get-caller-identity --region ${REGION} --no-cli-pager
 else
-    echo -e "${RED}Error: AWS credentials not configured${NC}"
-    echo "Please run: aws configure"
+    printf "${RED}Error: AWS credentials not configured${NC}\n"
+    printf "Please run: aws configure\n"
     exit 1
 fi
-echo ""
+printf "\n"
 
 # List existing tables
-echo -e "${YELLOW}Checking existing tables...${NC}"
+printf "${YELLOW}Checking existing tables...${NC}\n"
 aws dynamodb list-tables --region ${REGION} --no-cli-pager
-echo ""
+printf "\n"
 
 # Try to create one table with full error output
-echo -e "${YELLOW}Attempting to create customers table with full error output...${NC}"
-echo ""
+printf "${YELLOW}Attempting to create customers table with full error output...${NC}\n"
+printf "\n"
 
 aws dynamodb create-table \
     --table-name "${TABLE_PREFIX}-customers" \
@@ -57,5 +57,5 @@ aws dynamodb create-table \
     --region ${REGION} \
     --no-cli-pager
 
-echo ""
-echo -e "${GREEN}Table creation command completed${NC}"
+printf "\n"
+printf "${GREEN}Table creation command completed${NC}\n"
