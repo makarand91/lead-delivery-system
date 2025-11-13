@@ -86,14 +86,15 @@ export class DeliveriesController {
   async find(
     @Query('customerId') customerId?: string,
     @Query('status') status?: string,
+    @Query('limit') limit?: string,
   ): Promise<Delivery[]> {
-    if (customerId) {
-      return this.deliveriesService.findByCustomer(customerId);
-    }
-    if (status) {
-      return this.deliveriesService.findByStatus(status);
-    }
-    return [];
+    const filters: any = {};
+    if (customerId) filters.customerId = customerId;
+    if (status) filters.status = status;
+    if (limit) filters.limit = parseInt(limit, 10);
+
+    const result = await this.deliveriesService.findWithFilters(filters);
+    return result.deliveries;
   }
 
   @Post('upload-url')
