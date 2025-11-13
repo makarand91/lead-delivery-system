@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import apiService from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import FieldMappingForm from '../components/FieldMappingForm';
+
+interface FieldMapping {
+  sourceField: string;
+  targetField: string;
+  required?: boolean;
+}
 
 const DeliveryForm = () => {
   const navigate = useNavigate();
@@ -11,6 +18,9 @@ const DeliveryForm = () => {
   const [mappings, setMappings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [excelHeaders, setExcelHeaders] = useState<string[]>([]);
+  const [showMapping, setShowMapping] = useState(false);
+  const [fieldMappings, setFieldMappings] = useState<FieldMapping[]>([]);
   const [formData, setFormData] = useState({
     customerId: '',
     file: null as File | null,
@@ -70,19 +80,39 @@ const DeliveryForm = () => {
     setUploading(true);
     try {
       // Upload file via backend (more secure)
-      const { s3Key } = await apiService.uploadDeliveryFile({
+      const response = await apiService.uploadDeliveryFile({
         file: formData.file,
         customerId: formData.customerId,
       });
 
-      setFormData({ ...formData, s3FileKey: s3Key });
-      toast.success('File uploaded successfully!');
+      setFormData({ ...formData, s3FileKey: response.s3Key });
+
+      // If headers are returned, show field mapping
+      if (response.headers && Array.isArray(response.headers) && response.headers.length > 0) {
+        setExcelHeaders(response.headers);
+        setShowMapping(true);
+        toast.success('File uploaded successfully! Please map the fields.');
+      } else {
+        toast.success('File uploaded successfully!');
+      }
     } catch (error) {
       console.error('Error uploading file:', error);
       toast.error('Failed to upload file');
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleMappingComplete = (mappings: FieldMapping[]) => {
+    setFieldMappings(mappings);
+    setShowMapping(false);
+    toast.success('Field mapping saved!');
+  };
+
+  const handleSkipMapping = () => {
+    setShowMapping(false);
+    setFieldMappings([]);
+    toast.info('Using default field mapping');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,6 +129,11 @@ const DeliveryForm = () => {
         customerId: formData.customerId,
         s3FileKey: formData.s3FileKey,
       };
+
+      // Include field mappings if user mapped the fields
+      if (fieldMappings.length > 0) {
+        deliveryData.fieldMappings = fieldMappings;
+      }
 
       if (formData.mappingId) {
         deliveryData.mappingId = formData.mappingId;
@@ -182,34 +217,80 @@ const DeliveryForm = () => {
           {!formData.customerId && (
             <p className="mt-1 text-sm text-gray-500">Please select a customer first</p>
           )}
-          {formData.s3FileKey && (
-            <p className="mt-2 text-sm text-green-600">✓ File uploaded successfully</p>
+          {formData.s3FileKey && !showMapping && (
+            <p className="mt-2 text-sm text-green-600">
+              ✓ File uploaded successfully
+              {fieldMappings.length > 0 && ` (${fieldMappings.filter(m => m.targetField !== 'unmapped').length} fields mapped)`}
+            </p>
           )}
         </div>
 
-        {/* Field Mapping Selection */}
-        <div className="mb-6">
-          <label htmlFor="mappingId" className="block text-sm font-medium text-gray-700 mb-2">
-            Field Mapping (Optional)
-          </label>
-          <select
-            id="mappingId"
-            value={formData.mappingId}
-            onChange={(e) => setFormData({ ...formData, mappingId: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            disabled={!formData.customerId}
-          >
-            <option value="">Use default mapping...</option>
-            {mappings.map((mapping) => (
-              <option key={mapping.mappingId} value={mapping.mappingId}>
-                {mapping.name || mapping.mappingId}
-              </option>
-            ))}
-          </select>
-          {!formData.customerId && (
-            <p className="mt-1 text-sm text-gray-500">Please select a customer first</p>
-          )}
-        </div>
+        {/* Field Mapping Form */}
+        {showMapping && excelHeaders.length > 0 && (
+          <FieldMappingForm
+            excelHeaders={excelHeaders}
+            onMappingComplete={handleMappingComplete}
+            onSkip={handleSkipMapping}
+          />
+        )}
+
+        {/* Custom Field Mapping Status */}
+        {formData.s3FileKey && !showMapping && fieldMappings.length > 0 && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-900">
+                  Custom field mapping applied
+                </p>
+                <p className="text-sm text-blue-700">
+                  {fieldMappings.filter(m => m.targetField !== 'unmapped').length} of {fieldMappings.length} columns mapped
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMapping(true)}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Edit Mapping
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Field Mapping Selection (Saved Templates) */}
+        {!showMapping && fieldMappings.length === 0 && (
+          <div className="mb-6">
+            <label htmlFor="mappingId" className="block text-sm font-medium text-gray-700 mb-2">
+              Saved Field Mapping Template (Optional)
+            </label>
+            <select
+              id="mappingId"
+              value={formData.mappingId}
+              onChange={(e) => setFormData({ ...formData, mappingId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              disabled={!formData.customerId}
+            >
+              <option value="">Use default mapping...</option>
+              {mappings.map((mapping) => (
+                <option key={mapping.mappingId} value={mapping.mappingId}>
+                  {mapping.name || mapping.mappingId}
+                </option>
+              ))}
+            </select>
+            {!formData.customerId && (
+              <p className="mt-1 text-sm text-gray-500">Please select a customer first</p>
+            )}
+            {formData.s3FileKey && excelHeaders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowMapping(true)}
+                className="mt-2 text-sm text-primary-600 hover:text-primary-800 font-medium"
+              >
+                Or create custom field mapping for this delivery
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Scheduled Date/Time */}
         <div className="mb-6">

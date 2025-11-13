@@ -33,7 +33,7 @@ export class DeliveriesController {
     @Body('mappingId') mappingId: string,
     @Body('scheduledAt') scheduledAt: string,
     @Request() req,
-  ): Promise<{ s3Key: string; message: string }> {
+  ): Promise<{ s3Key: string; headers: string[]; message: string }> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -49,10 +49,21 @@ export class DeliveriesController {
       customerId,
     );
 
+    // Also parse Excel headers for field mapping
+    const headers = await this.deliveriesService.getExcelHeaders(s3Key);
+
     return {
       s3Key,
+      headers,
       message: 'File uploaded successfully',
     };
+  }
+
+  @Post('parse-headers')
+  @ApiOperation({ summary: 'Get Excel file headers for field mapping' })
+  async getHeaders(@Body('s3Key') s3Key: string): Promise<{ headers: string[] }> {
+    const headers = await this.deliveriesService.getExcelHeaders(s3Key);
+    return { headers };
   }
 
   @Post()

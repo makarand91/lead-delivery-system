@@ -280,6 +280,16 @@ export class DeliveriesService {
     return s3Key;
   }
 
+  async getExcelHeaders(s3Key: string): Promise<string[]> {
+    try {
+      const parsedData = await this.excelParser.parseExcelFromS3(s3Key);
+      return parsedData.headers;
+    } catch (error) {
+      console.error('Error parsing Excel headers:', error);
+      return [];
+    }
+  }
+
   // Legacy method - kept for backward compatibility but not recommended
   async getUploadUrl(filename: string, customerId: string): Promise<{ uploadUrl: string; s3Key: string }> {
     const s3Key = `${this.leadFilesPrefix}customers/${customerId}/leads/${Date.now()}-${filename}`;
