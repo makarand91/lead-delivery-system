@@ -4,6 +4,7 @@ import apiService from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import FieldMappingForm from '../components/FieldMappingForm';
+import CustomerSelector from '../components/CustomerSelector';
 
 interface FieldMapping {
   sourceField: string;
@@ -175,20 +176,15 @@ const DeliveryForm = () => {
           <label htmlFor="customerId" className="block text-sm font-medium text-gray-700 mb-2">
             Customer <span className="text-red-500">*</span>
           </label>
-          <select
-            id="customerId"
+          <CustomerSelector
+            customers={customers}
             value={formData.customerId}
-            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            onChange={(customerId) => setFormData({ ...formData, customerId })}
             required
-          >
-            <option value="">Select a customer...</option>
-            {customers.map((customer) => (
-              <option key={customer.customerId} value={customer.customerId}>
-                {customer.name} ({customer.crmType})
-              </option>
-            ))}
-          </select>
+          />
+          {customers.length === 0 && (
+            <p className="mt-1 text-sm text-gray-500">Loading customers...</p>
+          )}
         </div>
 
         {/* File Upload */}
