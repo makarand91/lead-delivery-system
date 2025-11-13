@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PutCommand, GetCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, QueryCommand, UpdateCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { AwsClientsService } from '../common/aws-clients.service';
@@ -139,27 +139,27 @@ export class DeliveriesService {
     lastEvaluatedKey?: any
   }> {
     const result = await this.awsClients.dynamoClient.send(
-      new QueryCommand({
+      new ScanCommand({
         TableName: this.deliveriesTable,
-        IndexName: 'StatusIndex',
-        KeyConditionExpression: '#status = :pending OR #status = :processing OR #status = :completed OR #status = :failed',
-        ExpressionAttributeNames: {
-          '#status': 'status',
-        },
+        FilterExpression: 'begins_with(PK, :pkPrefix)',
         ExpressionAttributeValues: {
-          ':pending': 'PENDING',
-          ':processing': 'PROCESSING',
-          ':completed': 'COMPLETED',
-          ':failed': 'FAILED',
+          ':pkPrefix': 'DELIVERY#',
         },
         Limit: limit,
         ExclusiveStartKey: lastEvaluatedKey,
-        ScanIndexForward: false, // Most recent first
       }),
     );
 
+    // Sort by createdAt descending (most recent first)
+    const deliveries = (result.Items || []) as Delivery[];
+    deliveries.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
     return {
-      deliveries: (result.Items || []) as Delivery[],
+      deliveries,
       lastEvaluatedKey: result.LastEvaluatedKey,
     };
   }
