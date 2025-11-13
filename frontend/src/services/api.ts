@@ -137,6 +137,17 @@ class ApiService {
     return response.data;
   }
 
+  // Logs
+  async getDeliveryLogs(deliveryId: string) {
+    const response = await this.api.get(`/logs/delivery/${deliveryId}`);
+    return Array.isArray(response.data) ? response.data : [];
+  }
+
+  async getFailedDeliveryLogs(deliveryId: string) {
+    const response = await this.api.get(`/logs/delivery/${deliveryId}/failed`);
+    return Array.isArray(response.data) ? response.data : [];
+  }
+
   // Legacy method - not recommended (exposes AWS URLs to frontend)
   async getUploadUrl(data: { filename: string; customerId: string }) {
     const response = await this.api.post('/deliveries/upload-url', data);
