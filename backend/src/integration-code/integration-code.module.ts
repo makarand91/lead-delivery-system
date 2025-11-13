@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { IntegrationCodeController } from './integration-code.controller';
 import { IntegrationCodeService } from './integration-code.service';
-import { AwsClientsModule } from '../common/aws-clients.module';
+import { AwsClientsService } from '../common/aws-clients.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AwsClientsModule],
+  imports: [AuthModule],
   controllers: [IntegrationCodeController],
-  providers: [IntegrationCodeService],
+  providers: [IntegrationCodeService, AwsClientsService],
   exports: [IntegrationCodeService],
 })
 export class IntegrationCodeModule {}
