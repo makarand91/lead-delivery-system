@@ -11,7 +11,8 @@ Amplify.configure({
     Cognito: {
       userPoolId: import.meta.env.VITE_USER_POOL_ID,
       userPoolClientId: import.meta.env.VITE_USER_POOL_CLIENT_ID,
-      identityPoolId: import.meta.env.VITE_IDENTITY_POOL_ID,
+      // Note: identityPoolId is NOT needed since frontend doesn't access AWS services directly
+      // All AWS operations go through the backend API
     },
   },
 });
