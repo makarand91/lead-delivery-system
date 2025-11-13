@@ -87,9 +87,9 @@ create_table \
 printf "${GREEN}2. Creating Deliveries Table${NC}\n"
 create_table \
     "${TABLE_PREFIX}-deliveries" \
-    "AttributeName=deliveryId,KeyType=HASH" \
-    "AttributeName=deliveryId,AttributeType=S AttributeName=customerId,AttributeType=S AttributeName=status,AttributeType=S AttributeName=createdAt,AttributeType=S" \
-    '[{"IndexName":"customerId-index","KeySchema":[{"AttributeName":"customerId","KeyType":"HASH"},{"AttributeName":"createdAt","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"status-index","KeySchema":[{"AttributeName":"status","KeyType":"HASH"},{"AttributeName":"createdAt","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]'
+    "AttributeName=PK,KeyType=HASH AttributeName=SK,KeyType=RANGE" \
+    "AttributeName=PK,AttributeType=S AttributeName=SK,AttributeType=S AttributeName=customerId,AttributeType=S AttributeName=status,AttributeType=S AttributeName=createdAt,AttributeType=S" \
+    '[{"IndexName":"CustomerIndex","KeySchema":[{"AttributeName":"customerId","KeyType":"HASH"},{"AttributeName":"createdAt","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"StatusIndex","KeySchema":[{"AttributeName":"status","KeyType":"HASH"},{"AttributeName":"createdAt","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]'
 
 # 3. Field Mappings Table
 printf "${GREEN}3. Creating Field Mappings Table${NC}\n"
