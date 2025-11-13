@@ -122,6 +122,50 @@ aws s3api put-bucket-lifecycle-configuration \
 printf "${GREEN}✓ Lifecycle policy applied${NC}\n"
 printf "\n"
 
+# Configure CORS
+printf "${YELLOW}Configuring CORS for frontend uploads...${NC}\n"
+cat > /tmp/cors-config.json <<'CORS_EOF'
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5173",
+        "http://localhost:5174"
+      ],
+      "AllowedMethods": [
+        "GET",
+        "PUT",
+        "POST",
+        "DELETE",
+        "HEAD"
+      ],
+      "AllowedHeaders": [
+        "*"
+      ],
+      "ExposeHeaders": [
+        "ETag",
+        "x-amz-server-side-encryption",
+        "x-amz-request-id",
+        "x-amz-id-2"
+      ],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}
+CORS_EOF
+
+aws s3api put-bucket-cors \
+    --bucket ${BUCKET_NAME} \
+    --cors-configuration file:///tmp/cors-config.json \
+    --region ${REGION}
+
+rm -f /tmp/cors-config.json
+
+printf "${GREEN}✓ CORS configuration applied${NC}\n"
+printf "\n"
+
 # Create folder structure (optional, but helps with organization)
 printf "${YELLOW}Creating folder structure...${NC}\n"
 for prefix in "lead-files/" "integration-code/" "warehouse/"; do
@@ -163,6 +207,7 @@ printf "${YELLOW}Bucket Features:${NC}\n"
 printf "  ✓ Versioning enabled\n"
 printf "  ✓ Public access blocked\n"
 printf "  ✓ Encryption enabled (AES256)\n"
+printf "  ✓ CORS configured (allows uploads from localhost)\n"
 printf "  ✓ Organized with prefixes: lead-files/, integration-code/, warehouse/\n"
 printf "  ✓ Warehouse prefix: Lifecycle transitions (IA @ 30d, Glacier @ 90d)\n"
 printf "\n"
