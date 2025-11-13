@@ -58,7 +58,7 @@ const CustomerDetail = () => {
 
     setDeploying(true);
     try {
-      const result = await apiService.deployLambda({
+      await apiService.deployLambda({
         customerId: id,
         code: generatedCode,
       });
