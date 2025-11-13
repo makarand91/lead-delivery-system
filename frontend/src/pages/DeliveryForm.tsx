@@ -1,0 +1,264 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import apiService from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
+
+const DeliveryForm = () => {
+  const navigate = useNavigate();
+  const { getToken } = useAuth();
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [mappings, setMappings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({
+    customerId: '',
+    file: null as File | null,
+    s3FileKey: '',
+    mappingId: '',
+    scheduledAt: '',
+  });
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  useEffect(() => {
+    if (formData.customerId) {
+      loadMappings(formData.customerId);
+    }
+  }, [formData.customerId]);
+
+  const loadCustomers = async () => {
+    try {
+      apiService.setTokenProvider(getToken);
+      const data = await apiService.getCustomers();
+      setCustomers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+      toast.error('Failed to load customers');
+    }
+  };
+
+  const loadMappings = async (customerId: string) => {
+    try {
+      const data = await apiService.getMappingsByCustomer(customerId);
+      setMappings(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading mappings:', error);
+      setMappings([]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.match(/\.(xlsx|xls)$/)) {
+        toast.error('Please select an Excel file (.xlsx or .xls)');
+        return;
+      }
+      setFormData({ ...formData, file });
+    }
+  };
+
+  const handleUploadFile = async () => {
+    if (!formData.file || !formData.customerId) {
+      toast.error('Please select a customer and file first');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Get presigned URL
+      const { uploadUrl, s3Key } = await apiService.getUploadUrl({
+        filename: formData.file.name,
+        customerId: formData.customerId,
+      });
+
+      // Upload file to S3
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: formData.file,
+        headers: {
+          'Content-Type': formData.file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file to S3');
+      }
+
+      setFormData({ ...formData, s3FileKey: s3Key });
+      toast.success('File uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.customerId || !formData.s3FileKey) {
+      toast.error('Please select a customer and upload a file');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const deliveryData: any = {
+        customerId: formData.customerId,
+        s3FileKey: formData.s3FileKey,
+      };
+
+      if (formData.mappingId) {
+        deliveryData.mappingId = formData.mappingId;
+      }
+
+      if (formData.scheduledAt) {
+        deliveryData.scheduledAt = new Date(formData.scheduledAt).toISOString();
+      }
+
+      await apiService.createDelivery(deliveryData);
+      toast.success('Delivery created successfully!');
+      navigate('/deliveries');
+    } catch (error) {
+      console.error('Error creating delivery:', error);
+      toast.error('Failed to create delivery');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <button
+          onClick={() => navigate('/deliveries')}
+          className="text-primary-600 hover:text-primary-800 mb-4"
+        >
+          ← Back to Deliveries
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">Create New Delivery</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Upload an Excel file with lead data to deliver to a customer's CRM
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6">
+        {/* Customer Selection */}
+        <div className="mb-6">
+          <label htmlFor="customerId" className="block text-sm font-medium text-gray-700 mb-2">
+            Customer <span className="text-red-500">*</span>
+          </label>
+          <select
+            id="customerId"
+            value={formData.customerId}
+            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            required
+          >
+            <option value="">Select a customer...</option>
+            {customers.map((customer) => (
+              <option key={customer.customerId} value={customer.customerId}>
+                {customer.name} ({customer.crmType})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* File Upload */}
+        <div className="mb-6">
+          <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-2">
+            Lead File (Excel) <span className="text-red-500">*</span>
+          </label>
+          <div className="flex items-center space-x-4">
+            <input
+              type="file"
+              id="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+              disabled={!formData.customerId}
+            />
+            <button
+              type="button"
+              onClick={handleUploadFile}
+              disabled={!formData.file || uploading || !formData.customerId}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {uploading ? 'Uploading...' : 'Upload'}
+            </button>
+          </div>
+          {!formData.customerId && (
+            <p className="mt-1 text-sm text-gray-500">Please select a customer first</p>
+          )}
+          {formData.s3FileKey && (
+            <p className="mt-2 text-sm text-green-600">✓ File uploaded successfully</p>
+          )}
+        </div>
+
+        {/* Field Mapping Selection */}
+        <div className="mb-6">
+          <label htmlFor="mappingId" className="block text-sm font-medium text-gray-700 mb-2">
+            Field Mapping (Optional)
+          </label>
+          <select
+            id="mappingId"
+            value={formData.mappingId}
+            onChange={(e) => setFormData({ ...formData, mappingId: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            disabled={!formData.customerId}
+          >
+            <option value="">Use default mapping...</option>
+            {mappings.map((mapping) => (
+              <option key={mapping.mappingId} value={mapping.mappingId}>
+                {mapping.name || mapping.mappingId}
+              </option>
+            ))}
+          </select>
+          {!formData.customerId && (
+            <p className="mt-1 text-sm text-gray-500">Please select a customer first</p>
+          )}
+        </div>
+
+        {/* Scheduled Date/Time */}
+        <div className="mb-6">
+          <label htmlFor="scheduledAt" className="block text-sm font-medium text-gray-700 mb-2">
+            Schedule For (Optional)
+          </label>
+          <input
+            type="datetime-local"
+            id="scheduledAt"
+            value={formData.scheduledAt}
+            onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <p className="mt-1 text-sm text-gray-500">Leave empty to start processing immediately</p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={() => navigate('/deliveries')}
+            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading || !formData.s3FileKey}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Creating...' : 'Create Delivery'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default DeliveryForm;
