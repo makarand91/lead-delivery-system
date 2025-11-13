@@ -91,11 +91,8 @@ class ApiService {
     return response.data;
   }
 
-  async getUploadUrl(filename: string, customerId: string) {
-    const response = await this.api.post('/deliveries/upload-url', {
-      filename,
-      customerId,
-    });
+  async getUploadUrl(data: { filename: string; customerId: string }) {
+    const response = await this.api.post('/deliveries/upload-url', data);
     return response.data;
   }
 
@@ -105,6 +102,10 @@ class ApiService {
       params: { customerId },
     });
     return Array.isArray(response.data) ? response.data : [];
+  }
+
+  async getMappingsByCustomer(customerId: string) {
+    return this.getMappings(customerId);
   }
 
   async getMapping(customerId: string, mappingId: string) {

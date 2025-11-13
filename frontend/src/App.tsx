@@ -10,6 +10,7 @@ import Customers from './pages/Customers';
 import CustomerForm from './pages/CustomerForm';
 import CustomerDetail from './pages/CustomerDetail';
 import Deliveries from './pages/Deliveries';
+import DeliveryForm from './pages/DeliveryForm';
 import DeliveryDetail from './pages/DeliveryDetail';
 import DeliveryLogs from './pages/DeliveryLogs';
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="customers/:id" element={<CustomerDetail />} />
           <Route path="customers/:id/edit" element={<CustomerForm />} />
           <Route path="deliveries" element={<Deliveries />} />
+          <Route path="deliveries/new" element={<DeliveryForm />} />
           <Route path="deliveries/:id" element={<DeliveryDetail />} />
           <Route path="logs/:deliveryId" element={<DeliveryLogs />} />
         </Route>
