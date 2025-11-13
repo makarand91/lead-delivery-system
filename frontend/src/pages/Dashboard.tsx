@@ -22,10 +22,14 @@ const Dashboard = () => {
     try {
       apiService.setTokenProvider(getToken);
 
-      const [customers, deliveries] = await Promise.all([
+      const [customersData, deliveriesData] = await Promise.all([
         apiService.getCustomers(),
         apiService.getDeliveries(),
       ]);
+
+      // Ensure we always have arrays
+      const customers = Array.isArray(customersData) ? customersData : [];
+      const deliveries = Array.isArray(deliveriesData) ? deliveriesData : [];
 
       setStats({
         totalCustomers: customers.length,
@@ -37,6 +41,14 @@ const Dashboard = () => {
       setRecentDeliveries(deliveries.slice(0, 5));
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      // Set defaults on error
+      setStats({
+        totalCustomers: 0,
+        totalDeliveries: 0,
+        pendingDeliveries: 0,
+        completedDeliveries: 0,
+      });
+      setRecentDeliveries([]);
     } finally {
       setLoading(false);
     }
