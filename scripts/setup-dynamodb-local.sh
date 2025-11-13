@@ -78,9 +78,9 @@ create_table() {
 printf "${GREEN}1. Creating Customers Table${NC}\n"
 create_table \
     "${TABLE_PREFIX}-customers" \
-    "AttributeName=customerId,KeyType=HASH" \
-    "AttributeName=customerId,AttributeType=S AttributeName=createdAt,AttributeType=S" \
-    '[{"IndexName":"createdAt-index","KeySchema":[{"AttributeName":"customerId","KeyType":"HASH"},{"AttributeName":"createdAt","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]'
+    "AttributeName=PK,KeyType=HASH AttributeName=SK,KeyType=RANGE" \
+    "AttributeName=PK,AttributeType=S AttributeName=SK,AttributeType=S AttributeName=teamId,AttributeType=S AttributeName=createdAt,AttributeType=S" \
+    '[{"IndexName":"TeamIndex","KeySchema":[{"AttributeName":"teamId","KeyType":"HASH"},{"AttributeName":"createdAt","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]'
 
 # 2. Deliveries Table
 printf "${GREEN}2. Creating Deliveries Table${NC}\n"

@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
+import CustomerForm from './pages/CustomerForm';
 import CustomerDetail from './pages/CustomerDetail';
 import Deliveries from './pages/Deliveries';
 import DeliveryDetail from './pages/DeliveryDetail';
@@ -28,7 +29,9 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="customers" element={<Customers />} />
+          <Route path="customers/new" element={<CustomerForm />} />
           <Route path="customers/:id" element={<CustomerDetail />} />
+          <Route path="customers/:id/edit" element={<CustomerForm />} />
           <Route path="deliveries" element={<Deliveries />} />
           <Route path="deliveries/:id" element={<DeliveryDetail />} />
           <Route path="logs/:deliveryId" element={<DeliveryLogs />} />
