@@ -37,12 +37,13 @@ const storageStack = new StorageStack(app, `${stackPrefix}-storage`, {
   description: 'S3 buckets for lead files and generated code',
 });
 
-// Auth Stack - Cognito User Pool
+// Auth Stack - Use existing Cognito User Pool
 const authStack = new AuthStack(app, `${stackPrefix}-auth`, {
   env,
   stackName: `${stackPrefix}-auth`,
-  description: 'Cognito authentication for lead delivery system',
-  domainPrefix: process.env.COGNITO_DOMAIN_PREFIX || `${appName}-${environment}`,
+  description: 'Cognito authentication configuration for lead delivery system',
+  userPoolId: process.env.COGNITO_USER_POOL_ID!,
+  userPoolClientId: process.env.COGNITO_USER_POOL_CLIENT_ID, // Optional - will create new if not provided
 });
 
 // Monitoring Stack - ElasticSearch

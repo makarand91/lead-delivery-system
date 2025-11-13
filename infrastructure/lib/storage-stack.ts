@@ -7,6 +7,7 @@ export class StorageStack extends cdk.Stack {
   public readonly buckets: {
     leadFiles: s3.Bucket;
     integrationCode: s3.Bucket;
+    warehouseFiles: s3.Bucket;
   };
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -87,9 +88,53 @@ export class StorageStack extends cdk.Stack {
       })
     );
 
+    // Warehouse Files Bucket - stores formatted/validated files for data warehouse
+    const warehouseFilesBucket = new s3.Bucket(this, 'WarehouseFilesBucket', {
+      bucketName: `${id}-warehouse-files-${cdk.Aws.ACCOUNT_ID}`,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      versioned: true,
+      lifecycleRules: [
+        {
+          id: 'TransitionToIA',
+          enabled: true,
+          transitions: [
+            {
+              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
+              transitionAfter: cdk.Duration.days(30),
+            },
+            {
+              storageClass: s3.StorageClass.GLACIER,
+              transitionAfter: cdk.Duration.days(90),
+            },
+          ],
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    warehouseFilesBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'DenyInsecureTransport',
+        effect: iam.Effect.DENY,
+        principals: [new iam.AnyPrincipal()],
+        actions: ['s3:*'],
+        resources: [
+          warehouseFilesBucket.bucketArn,
+          `${warehouseFilesBucket.bucketArn}/*`,
+        ],
+        conditions: {
+          Bool: {
+            'aws:SecureTransport': 'false',
+          },
+        },
+      })
+    );
+
     this.buckets = {
       leadFiles: leadFilesBucket,
       integrationCode: integrationCodeBucket,
+      warehouseFiles: warehouseFilesBucket,
     };
 
     // CloudFormation outputs
@@ -115,6 +160,18 @@ export class StorageStack extends cdk.Stack {
       value: integrationCodeBucket.bucketArn,
       description: 'S3 bucket ARN for integration code',
       exportName: `${id}-integration-code-bucket-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WarehouseFilesBucketName', {
+      value: warehouseFilesBucket.bucketName,
+      description: 'S3 bucket for warehouse files (formatted/validated)',
+      exportName: `${id}-warehouse-files-bucket`,
+    });
+
+    new cdk.CfnOutput(this, 'WarehouseFilesBucketArn', {
+      value: warehouseFilesBucket.bucketArn,
+      description: 'S3 bucket ARN for warehouse files',
+      exportName: `${id}-warehouse-files-bucket-arn`,
     });
   }
 }

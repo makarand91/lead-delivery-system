@@ -56,4 +56,22 @@ export class DeliveriesController {
   ): Promise<{ uploadUrl: string; s3Key: string }> {
     return this.deliveriesService.getUploadUrl(body.filename, body.customerId);
   }
+
+  @Get('global/view')
+  @ApiOperation({ summary: 'Get global deliveries view with summary statistics' })
+  async getGlobalView(
+    @Query('status') status?: string,
+    @Query('customerId') customerId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.deliveriesService.getGlobalDeliveriesView({
+      status,
+      customerId,
+      startDate,
+      endDate,
+      limit: limit ? parseInt(limit) : undefined,
+    });
+  }
 }

@@ -9,6 +9,7 @@ import { LambdaDeployerModule } from './lambda-deployer/lambda-deployer.module';
 import { ExcelParserModule } from './excel-parser/excel-parser.module';
 import { LogsModule } from './logs/logs.module';
 import { TransformationsModule } from './transformations/transformations.module';
+import { ValidationModule } from './validation/validation.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -26,6 +27,7 @@ import { AppController } from './app.controller';
     ExcelParserModule,
     LogsModule,
     TransformationsModule,
+    ValidationModule,
   ],
   controllers: [AppController],
 })

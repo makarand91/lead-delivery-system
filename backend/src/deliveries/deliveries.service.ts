@@ -131,6 +131,95 @@ export class DeliveriesService {
     return (result.Items || []) as Delivery[];
   }
 
+  async findAll(limit: number = 100, lastEvaluatedKey?: any): Promise<{
+    deliveries: Delivery[];
+    lastEvaluatedKey?: any
+  }> {
+    const result = await this.awsClients.dynamoClient.send(
+      new QueryCommand({
+        TableName: this.deliveriesTable,
+        IndexName: 'StatusIndex',
+        KeyConditionExpression: '#status = :pending OR #status = :processing OR #status = :completed OR #status = :failed',
+        ExpressionAttributeNames: {
+          '#status': 'status',
+        },
+        ExpressionAttributeValues: {
+          ':pending': 'PENDING',
+          ':processing': 'PROCESSING',
+          ':completed': 'COMPLETED',
+          ':failed': 'FAILED',
+        },
+        Limit: limit,
+        ExclusiveStartKey: lastEvaluatedKey,
+        ScanIndexForward: false, // Most recent first
+      }),
+    );
+
+    return {
+      deliveries: (result.Items || []) as Delivery[],
+      lastEvaluatedKey: result.LastEvaluatedKey,
+    };
+  }
+
+  async getGlobalDeliveriesView(filters?: {
+    status?: string;
+    customerId?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }): Promise<{
+    deliveries: Delivery[];
+    summary: {
+      total: number;
+      pending: number;
+      processing: number;
+      completed: number;
+      failed: number;
+      totalLeads: number;
+      successfulLeads: number;
+      failedLeads: number;
+    };
+  }> {
+    // Get all deliveries (with pagination if needed)
+    const { deliveries } = await this.findAll(filters?.limit || 1000);
+
+    // Apply filters
+    let filteredDeliveries = deliveries;
+
+    if (filters?.status) {
+      filteredDeliveries = filteredDeliveries.filter(d => d.status === filters.status);
+    }
+
+    if (filters?.customerId) {
+      filteredDeliveries = filteredDeliveries.filter(d => d.customerId === filters.customerId);
+    }
+
+    if (filters?.startDate) {
+      filteredDeliveries = filteredDeliveries.filter(d => d.createdAt >= filters.startDate);
+    }
+
+    if (filters?.endDate) {
+      filteredDeliveries = filteredDeliveries.filter(d => d.createdAt <= filters.endDate);
+    }
+
+    // Calculate summary
+    const summary = {
+      total: filteredDeliveries.length,
+      pending: filteredDeliveries.filter(d => d.status === 'PENDING').length,
+      processing: filteredDeliveries.filter(d => d.status === 'PROCESSING').length,
+      completed: filteredDeliveries.filter(d => d.status === 'COMPLETED').length,
+      failed: filteredDeliveries.filter(d => d.status === 'FAILED').length,
+      totalLeads: filteredDeliveries.reduce((sum, d) => sum + d.totalLeads, 0),
+      successfulLeads: filteredDeliveries.reduce((sum, d) => sum + d.successCount, 0),
+      failedLeads: filteredDeliveries.reduce((sum, d) => sum + d.failedCount, 0),
+    };
+
+    return {
+      deliveries: filteredDeliveries,
+      summary,
+    };
+  }
+
   async updateStatus(
     deliveryId: string,
     status: Delivery['status'],

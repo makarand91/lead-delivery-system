@@ -4,15 +4,25 @@ import { PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand } fr
 import { AwsClientsService } from '../common/aws-clients.service';
 import { v4 as uuidv4 } from 'uuid';
 
+export interface ValidationRule {
+  field: string;
+  type: 'required' | 'email' | 'phone' | 'regex' | 'minLength' | 'maxLength' | 'custom';
+  value?: any; // For regex, minLength, maxLength
+  customFunction?: string; // JavaScript function for custom validation
+  errorMessage?: string;
+}
+
 export interface Customer {
   customerId: string;
   teamId: string;
   name: string;
-  crmType: 'Salesforce' | 'HubSpot' | 'Pipedrive' | 'Custom';
-  crmEndpoint: string;
+  crmType: 'Salesforce' | 'HubSpot' | 'Pipedrive' | 'Custom' | 'Download-Only';
+  crmEndpoint?: string; // Optional for download-only
   lambdaArn?: string;
   credentials?: any;
   customContext?: any;
+  validationRules?: ValidationRule[]; // Validation rules per customer
+  isDownloadOnly?: boolean; // If true, only validate and generate formatted file
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -41,6 +51,8 @@ export class CustomersService {
       crmEndpoint: data.crmEndpoint,
       credentials: data.credentials || {},
       customContext: data.customContext || {},
+      validationRules: data.validationRules || [],
+      isDownloadOnly: data.isDownloadOnly || data.crmType === 'Download-Only',
       createdAt: now,
       updatedAt: now,
       createdBy: data.createdBy,
