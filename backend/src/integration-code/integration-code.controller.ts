@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IntegrationCodeService, IntegrationCode } from './integration-code.service';
-import { AuthGuard } from '../common/auth.guard';
+import { AuthGuard } from '../auth/auth.guard';
 
 @ApiTags('Integration Code')
 @Controller('integration-code')

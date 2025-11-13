@@ -1,7 +1,7 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AiGeneratorService, GenerateIntegrationCodeRequest } from './ai-generator.service';
-import { AuthGuard } from '../common/auth.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { IntegrationCodeService } from '../integration-code/integration-code.service';
 
 @ApiTags('AI Generator')
