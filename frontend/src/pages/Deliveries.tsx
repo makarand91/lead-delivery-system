@@ -51,6 +51,12 @@ const Deliveries = () => {
         return 'bg-red-100 text-red-800';
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800';
+      case 'PENDING_APPROVAL':
+        return 'bg-purple-100 text-purple-800';
+      case 'APPROVED':
+        return 'bg-green-100 text-green-800';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -98,6 +104,9 @@ const Deliveries = () => {
           className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">All</option>
+          <option value="PENDING_APPROVAL">Pending Approval</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
           <option value="PENDING">Pending</option>
           <option value="PROCESSING">Processing</option>
           <option value="COMPLETED">Completed</option>
@@ -128,13 +137,13 @@ const Deliveries = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Approval
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Leads
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Success
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Failed
+                  Uploaded By
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
@@ -156,22 +165,40 @@ const Deliveries = () => {
                         delivery.status
                       )}`}
                     >
-                      {delivery.status}
+                      {delivery.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        delivery.approvalStatus === 'APPROVED'
+                          ? 'bg-green-100 text-green-800'
+                          : delivery.approvalStatus === 'REJECTED'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {delivery.approvalStatus || 'PENDING'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {delivery.totalLeads}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                    {delivery.successCount}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                    {delivery.failedCount}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {delivery.uploadedBy || delivery.createdBy}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(delivery.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    {delivery.approvalStatus === 'PENDING' ? (
+                      <Link
+                        to={`/deliveries/${delivery.deliveryId}/approve`}
+                        className="text-green-600 hover:text-green-900 mr-4 font-semibold"
+                      >
+                        Approve
+                      </Link>
+                    ) : null}
                     <Link
                       to={`/deliveries/${delivery.deliveryId}`}
                       className="text-primary-600 hover:text-primary-900 mr-4"

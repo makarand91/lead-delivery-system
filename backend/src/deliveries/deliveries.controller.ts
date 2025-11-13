@@ -122,4 +122,37 @@ export class DeliveriesController {
       limit: limit ? parseInt(limit) : undefined,
     });
   }
+
+  @Get(':id/preview')
+  @ApiOperation({ summary: 'Preview formatted data with mappings applied' })
+  async getPreview(
+    @Param('id') id: string,
+    @Query('limit') limit?: string,
+  ): Promise<{
+    headers: string[];
+    rows: any[];
+    totalRows: number;
+    mappings: Array<{ sourceField: string; targetField: string; required?: boolean }>;
+  }> {
+    return this.deliveriesService.getPreviewData(id, limit ? parseInt(limit, 10) : 50);
+  }
+
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'Approve delivery and move to warehouse' })
+  async approve(
+    @Param('id') id: string,
+    @Request() req,
+  ): Promise<Delivery> {
+    return this.deliveriesService.approveDelivery(id, req.user.sub);
+  }
+
+  @Post(':id/reject')
+  @ApiOperation({ summary: 'Reject delivery' })
+  async reject(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Request() req,
+  ): Promise<Delivery> {
+    return this.deliveriesService.rejectDelivery(id, req.user.sub, reason);
+  }
 }

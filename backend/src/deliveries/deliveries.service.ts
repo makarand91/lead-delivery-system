@@ -12,7 +12,9 @@ export interface Delivery {
   customerId: string;
   s3FileKey: string;
   mappingId?: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  fieldMappings?: Array<{ sourceField: string; targetField: string; required?: boolean }>;
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   totalLeads: number;
   successCount: number;
   failedCount: number;
@@ -20,6 +22,13 @@ export interface Delivery {
   processedAt?: string;
   createdAt: string;
   createdBy: string;
+  uploadedBy: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  warehouseS3Key?: string;
 }
 
 @Injectable()
@@ -48,13 +57,16 @@ export class DeliveriesService {
       customerId: data.customerId,
       s3FileKey: data.s3FileKey,
       mappingId: data.mappingId,
-      status: 'PENDING',
+      fieldMappings: data.fieldMappings,
+      status: 'PENDING_APPROVAL',
+      approvalStatus: 'PENDING',
       totalLeads: 0,
       successCount: 0,
       failedCount: 0,
       scheduledAt: data.scheduledAt || now,
       createdAt: now,
       createdBy: data.createdBy,
+      uploadedBy: data.createdBy, // Same as createdBy for now
     };
 
     // Parse Excel to get total leads
@@ -73,6 +85,7 @@ export class DeliveriesService {
           SK: 'METADATA',
           customerId: delivery.customerId,
           status: delivery.status,
+          approvalStatus: delivery.approvalStatus,
           scheduledAt: delivery.scheduledAt,
           ...delivery,
         },
@@ -305,5 +318,186 @@ export class DeliveriesService {
     });
 
     return { uploadUrl, s3Key };
+  }
+
+  // Preview formatted data with mappings applied
+  async getPreviewData(deliveryId: string, limit: number = 50): Promise<{
+    headers: string[];
+    rows: any[];
+    totalRows: number;
+    mappings: Array<{ sourceField: string; targetField: string; required?: boolean }>;
+  }> {
+    const delivery = await this.findOne(deliveryId);
+
+    // Parse Excel file
+    const parsedData = await this.excelParser.parseExcelFromS3(delivery.s3FileKey);
+
+    // Apply field mappings if present
+    let formattedRows = parsedData.rows.slice(0, limit);
+    const mappings = delivery.fieldMappings || [];
+
+    if (mappings.length > 0) {
+      formattedRows = formattedRows.map(row => {
+        const formattedRow: any = {};
+        mappings.forEach(mapping => {
+          if (mapping.targetField !== 'unmapped') {
+            formattedRow[mapping.targetField] = row[mapping.sourceField] || '';
+          }
+        });
+        // Add unmapped fields at the end
+        mappings
+          .filter(m => m.targetField === 'unmapped')
+          .forEach(mapping => {
+            formattedRow[mapping.sourceField] = row[mapping.sourceField] || '';
+          });
+        return formattedRow;
+      });
+    }
+
+    return {
+      headers: mappings.length > 0
+        ? mappings.filter(m => m.targetField !== 'unmapped').map(m => m.targetField)
+        : parsedData.headers,
+      rows: formattedRows,
+      totalRows: parsedData.totalRows,
+      mappings,
+    };
+  }
+
+  // Approve delivery and create formatted file in warehouse
+  async approveDelivery(deliveryId: string, approvedBy: string): Promise<Delivery> {
+    const delivery = await this.findOne(deliveryId);
+
+    if (delivery.approvalStatus === 'APPROVED') {
+      throw new Error('Delivery is already approved');
+    }
+
+    // Format full data and save to warehouse
+    const warehouseS3Key = await this.formatAndSaveToWarehouse(delivery);
+
+    // Update delivery status
+    const now = new Date().toISOString();
+    const updatedDelivery: Delivery = {
+      ...delivery,
+      status: 'PENDING',
+      approvalStatus: 'APPROVED',
+      approvedBy,
+      approvedAt: now,
+      warehouseS3Key,
+    };
+
+    await this.awsClients.dynamoClient.send(
+      new PutCommand({
+        TableName: this.deliveriesTable,
+        Item: {
+          PK: `DELIVERY#${deliveryId}`,
+          SK: 'METADATA',
+          customerId: updatedDelivery.customerId,
+          status: updatedDelivery.status,
+          approvalStatus: updatedDelivery.approvalStatus,
+          scheduledAt: updatedDelivery.scheduledAt,
+          ...updatedDelivery,
+        },
+      }),
+    );
+
+    return updatedDelivery;
+  }
+
+  // Reject delivery
+  async rejectDelivery(deliveryId: string, rejectedBy: string, reason: string): Promise<Delivery> {
+    const delivery = await this.findOne(deliveryId);
+
+    if (delivery.approvalStatus === 'APPROVED') {
+      throw new Error('Cannot reject an approved delivery');
+    }
+
+    const now = new Date().toISOString();
+    const updatedDelivery: Delivery = {
+      ...delivery,
+      status: 'REJECTED',
+      approvalStatus: 'REJECTED',
+      rejectedBy,
+      rejectedAt: now,
+      rejectionReason: reason,
+    };
+
+    await this.awsClients.dynamoClient.send(
+      new PutCommand({
+        TableName: this.deliveriesTable,
+        Item: {
+          PK: `DELIVERY#${deliveryId}`,
+          SK: 'METADATA',
+          customerId: updatedDelivery.customerId,
+          status: updatedDelivery.status,
+          approvalStatus: updatedDelivery.approvalStatus,
+          scheduledAt: updatedDelivery.scheduledAt,
+          ...updatedDelivery,
+        },
+      }),
+    );
+
+    return updatedDelivery;
+  }
+
+  // Format data and save to warehouse S3 folder
+  private async formatAndSaveToWarehouse(delivery: Delivery): Promise<string> {
+    // Parse full Excel file
+    const parsedData = await this.excelParser.parseExcelFromS3(delivery.s3FileKey);
+    const mappings = delivery.fieldMappings || [];
+
+    // Apply field mappings to all rows
+    let formattedRows = parsedData.rows;
+
+    if (mappings.length > 0) {
+      formattedRows = formattedRows.map(row => {
+        const formattedRow: any = {};
+        mappings.forEach(mapping => {
+          if (mapping.targetField !== 'unmapped') {
+            formattedRow[mapping.targetField] = row[mapping.sourceField] || '';
+          }
+        });
+        // Add unmapped fields at the end
+        mappings
+          .filter(m => m.targetField === 'unmapped')
+          .forEach(mapping => {
+            formattedRow[mapping.sourceField] = row[mapping.sourceField] || '';
+          });
+        return formattedRow;
+      });
+    }
+
+    // Convert to CSV format
+    const headers = mappings.length > 0
+      ? mappings.filter(m => m.targetField !== 'unmapped').map(m => m.targetField)
+      : parsedData.headers;
+
+    const csvLines = [headers.join(',')];
+    formattedRows.forEach(row => {
+      const values = headers.map(header => {
+        const value = row[header] || '';
+        // Escape commas and quotes in CSV
+        return typeof value === 'string' && (value.includes(',') || value.includes('"'))
+          ? `"${value.replace(/"/g, '""')}"`
+          : value;
+      });
+      csvLines.push(values.join(','));
+    });
+
+    const csvContent = csvLines.join('\n');
+
+    // Save to warehouse folder in S3
+    const warehouseS3Key = `warehouse/${delivery.customerId}/${delivery.deliveryId}/formatted-${Date.now()}.csv`;
+
+    await this.awsClients.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.s3Bucket,
+        Key: warehouseS3Key,
+        Body: csvContent,
+        ContentType: 'text/csv',
+      }),
+    );
+
+    return warehouseS3Key;
   }
 }
