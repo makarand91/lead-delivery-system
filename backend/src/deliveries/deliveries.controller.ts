@@ -93,7 +93,7 @@ export class DeliveriesController {
     if (status) filters.status = status;
     if (limit) filters.limit = parseInt(limit, 10);
 
-    const result = await this.deliveriesService.findWithFilters(filters);
+    const result = await this.deliveriesService.getGlobalDeliveriesView(filters);
     return result.deliveries;
   }
 
